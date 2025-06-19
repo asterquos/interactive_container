@@ -29,7 +29,15 @@ if errorlevel 1 (
 )
 
 echo.
-echo 步骤3: 构建可执行文件...
+echo 步骤3: 检查spec文件...
+if not exist container_loader.spec (
+    echo 错误: 找不到container_loader.spec文件
+    echo 正在生成默认spec文件...
+    python build_exe.py
+)
+
+echo.
+echo 步骤4: 构建可执行文件...
 pyinstaller --clean container_loader.spec
 if errorlevel 1 (
     echo 错误: 构建失败
