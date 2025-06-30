@@ -33,9 +33,9 @@ def copy_resources():
     if os.path.exists('README.md'):
         shutil.copy2('README.md', 'dist/')
     
-    # 复制图标（如果有）
-    if os.path.exists('img.png'):
-        shutil.copy2('img.png', 'dist/')
+    # 复制使用说明
+    if os.path.exists('使用说明.txt'):
+        shutil.copy2('使用说明.txt', 'dist/')
 
 def create_spec_file():
     """创建PyInstaller配置文件"""
@@ -49,7 +49,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('test_data', 'test_data'),
-        ('img.png', '.'),
+        ('使用说明.txt', '.'),
     ],
     hiddenimports=[
         'PyQt5.QtCore',
@@ -90,7 +90,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='img.png',  # 应用图标
+    icon=None,  # 无图标
 )
 
 coll = COLLECT(
