@@ -1,1 +1,0 @@
-# Core module for container loading system
