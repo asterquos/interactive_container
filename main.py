@@ -13,12 +13,20 @@ from gui.main_window import MainWindow
 
 def main():
     """主函数"""
+    # 禁用OpenGL以避免兼容性问题
+    os.environ['QT_XCB_GL_INTEGRATION'] = 'none'
+    os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
+    os.environ['QT_QUICK_BACKEND'] = 'software'
+    
+    # 启用高DPI支持（必须在QApplication创建之前设置）
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    
+    # 使用软件渲染而不是硬件加速
+    QApplication.setAttribute(Qt.AA_UseSoftwareOpenGL, True)
+    
     app = QApplication(sys.argv)
     app.setApplicationName("集装箱装载管理系统")
     app.setApplicationVersion("1.0.0")
-    
-    # 启用高DPI支持
-    app.setAttribute(Qt.AA_EnableHighDpiScaling)
     
     # 创建主窗口
     window = MainWindow()

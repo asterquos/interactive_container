@@ -19,16 +19,33 @@ class BoxListItem(QListWidgetItem):
     
     def update_display(self):
         """更新显示文本"""
-        text = f"{self.box.id}\\n{self.box.length}×{self.box.width}\\n{self.box.weight}kg"
+        # 显示：箱号、重量和尺寸
+        text = f"{self.box.id}: {self.box.weight}kg ({self.box.length}×{self.box.width})"
         self.setText(text)
         
-        # 根据重量设置颜色
-        if self.box.weight > 1000:
-            self.setBackground(QBrush(QColor(255, 200, 200)))  # 重箱用红色背景
-        elif self.box.weight > 500:
-            self.setBackground(QBrush(QColor(255, 255, 200)))  # 中等重量用黄色背景
-        else:
-            self.setBackground(QBrush(QColor(200, 255, 200)))  # 轻箱用绿色背景
+        # 根据重量设置颜色（与箱子颜色统一）
+        weight = self.box.weight
+        
+        if weight >= 800:  # 重箱 - 红色系
+            ratio = min((weight - 800) / 1200, 1.0)
+            r = 255
+            g = int(200 - ratio * 150)  # 200 -> 50
+            b = int(200 - ratio * 150)  # 200 -> 50
+            color = QColor(r, g, b)
+        elif weight >= 400:  # 中等 - 黄色系
+            ratio = (weight - 400) / 400
+            r = 255
+            g = int(255 - ratio * 55)  # 255 -> 200
+            b = int(150 - ratio * 100)  # 150 -> 50
+            color = QColor(r, g, b)
+        else:  # 轻箱 - 绿色系
+            ratio = weight / 400
+            r = int(200 - ratio * 100)  # 200 -> 100
+            g = 255
+            b = int(200 - ratio * 100)  # 200 -> 100
+            color = QColor(r, g, b)
+        
+        self.setBackground(QBrush(color))
 
 class BoxListPanel(QWidget):
     """箱子列表面板"""
@@ -120,6 +137,9 @@ class BoxListPanel(QWidget):
         self.box_list.clear()
         
         filtered_boxes = self.get_filtered_boxes()
+        
+        # 按重量排序（从重到轻）
+        filtered_boxes.sort(key=lambda b: b.weight, reverse=True)
         
         for box in filtered_boxes:
             item = BoxListItem(box)

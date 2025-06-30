@@ -53,7 +53,7 @@ class Container:
             return True
         return False
     
-    def can_place_box(self, box: Box) -> bool:
+    def can_place_box(self, box: Box, exclude_self: bool = True) -> bool:
         """检查箱子是否可以放置在指定位置"""
         # 检查是否超出边界
         if (box.x < 0 or box.y < 0 or 
@@ -63,6 +63,9 @@ class Container:
         
         # 检查是否与其他箱子重叠
         for existing_box in self.boxes:
+            # 如果exclude_self为True且是同一个箱子，跳过检查
+            if exclude_self and existing_box is box:
+                continue
             if box.overlaps_with(existing_box):
                 return False
         
@@ -85,7 +88,7 @@ class Container:
         return None
     
     def calculate_weight_balance(self) -> dict:
-        """计算重量平衡"""
+        """计算重量平衡 - 按面积比例分配跨中心线的箱子重量"""
         if not self.boxes:
             return {
                 'left_weight': 0,
@@ -99,25 +102,68 @@ class Container:
                 'is_balanced': True
             }
         
-        # 计算重心
-        total_weight = self.total_weight
-        if total_weight == 0:
-            return self.calculate_weight_balance()
+        # 集装箱中心线
+        center_x_line = self.length / 2
+        center_y_line = self.width / 2
         
-        center_x = sum(box.center_x * box.weight for box in self.boxes) / total_weight
-        center_y = sum(box.center_y * box.weight for box in self.boxes) / total_weight
+        # 初始化四个区域的重量
+        left_weight = 0
+        right_weight = 0
+        front_weight = 0
+        rear_weight = 0
         
-        # 计算左右重量
-        left_weight = sum(box.weight for box in self.boxes if box.center_x < self.length / 2)
-        right_weight = sum(box.weight for box in self.boxes if box.center_x >= self.length / 2)
-        
-        # 计算前后重量
-        front_weight = sum(box.weight for box in self.boxes if box.center_y < self.width / 2)
-        rear_weight = sum(box.weight for box in self.boxes if box.center_y >= self.width / 2)
+        # 为每个箱子按面积比例分配重量
+        for box in self.boxes:
+            # 箱子的边界
+            box_left = box.x
+            box_right = box.x + box.actual_length
+            box_front = box.y
+            box_rear = box.y + box.actual_width
+            
+            # 计算左右分配
+            if box_right <= center_x_line:
+                # 完全在左侧
+                left_weight += box.weight
+            elif box_left >= center_x_line:
+                # 完全在右侧
+                right_weight += box.weight
+            else:
+                # 跨越左右中心线，按面积比例分配
+                left_area = (center_x_line - box_left) * box.actual_width
+                right_area = (box_right - center_x_line) * box.actual_width
+                total_area = box.area
+                
+                left_weight += box.weight * (left_area / total_area)
+                right_weight += box.weight * (right_area / total_area)
+            
+            # 计算前后分配
+            if box_rear <= center_y_line:
+                # 完全在前面
+                front_weight += box.weight
+            elif box_front >= center_y_line:
+                # 完全在后面
+                rear_weight += box.weight
+            else:
+                # 跨越前后中心线，按面积比例分配
+                front_area = (center_y_line - box_front) * box.actual_length
+                rear_area = (box_rear - center_y_line) * box.actual_length
+                total_area = box.area
+                
+                front_weight += box.weight * (front_area / total_area)
+                rear_weight += box.weight * (rear_area / total_area)
         
         # 计算重量差值
         lr_diff = abs(left_weight - right_weight)
         fr_diff = abs(front_weight - rear_weight)
+        
+        # 计算整体重心（用于显示）
+        total_weight = self.total_weight
+        if total_weight > 0:
+            center_x = sum(box.center_x * box.weight for box in self.boxes) / total_weight
+            center_y = sum(box.center_y * box.weight for box in self.boxes) / total_weight
+        else:
+            center_x = center_x_line
+            center_y = center_y_line
         
         # 检查是否平衡（根据需求文档的限制）
         is_balanced = lr_diff < 500 and fr_diff < 2000

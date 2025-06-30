@@ -16,6 +16,16 @@ class Box:
     y: float = 0  # Y坐标位置
     rotated: bool = False  # 是否旋转90度
     
+    def __hash__(self):
+        """使Box对象可哈希，基于ID"""
+        return hash(self.id)
+    
+    def __eq__(self, other):
+        """基于ID比较Box对象是否相等"""
+        if not isinstance(other, Box):
+            return False
+        return self.id == other.id
+    
     @property
     def actual_length(self) -> float:
         """获取实际长度（考虑旋转）"""

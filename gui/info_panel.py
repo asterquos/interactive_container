@@ -16,43 +16,161 @@ class InfoPanel(QWidget):
         self.init_ui()
     
     def init_ui(self):
-        """初始化用户界面"""
+        """初始化用户界面（紧凑水平布局，无滚动条）"""
         layout = QVBoxLayout(self)
+        layout.setSpacing(2)
+        layout.setContentsMargins(8, 5, 8, 5)
         
-        # 创建滚动区域
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_widget = QWidget()
-        scroll_layout = QVBoxLayout(scroll_widget)
+        # 直接显示选中箱子信息（去掉标题）
+        selection_widget = self.create_enlarged_selection_info()
+        layout.addWidget(selection_widget)
+        layout.addStretch()
+    
+    def add_separator(self, layout):
+        """添加分隔线"""
+        from PyQt5.QtWidgets import QFrame
+        line = QFrame()
+        line.setFrameShape(QFrame.VLine)
+        line.setFrameShadow(QFrame.Sunken)
+        line.setStyleSheet("color: #bdc3c7;")
+        layout.addWidget(line)
+    
+    def create_compact_container_info(self):
+        """创建紧凑的集装箱信息"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setSpacing(2)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # 小标题
+        title = QLabel("集装箱状态")
+        title.setStyleSheet("font-weight: bold; font-size: 10px; color: #34495e;")
+        layout.addWidget(title)
+        
+        # 信息标签
+        self.container_name_label = QLabel("名称: -")
+        self.container_size_label = QLabel("尺寸: -")
+        self.container_box_count_label = QLabel("箱子: -")
+        self.container_total_weight_label = QLabel("重量: -")
+        
+        # 统一样式
+        label_style = "font-size: 9px; color: #2c3e50; margin: 1px 0px;"
+        for label in [self.container_name_label, self.container_size_label, 
+                     self.container_box_count_label, self.container_total_weight_label]:
+            label.setStyleSheet(label_style)
+            layout.addWidget(label)
+        
+        return widget
+    
+    def create_compact_utilization_info(self):
+        """创建紧凑的利用率信息"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setSpacing(2)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # 小标题
+        title = QLabel("空间利用率")
+        title.setStyleSheet("font-weight: bold; font-size: 10px; color: #34495e;")
+        layout.addWidget(title)
+        
+        # 面积利用率
+        self.area_utilization_label = QLabel("面积: -")
+        self.area_utilization_label.setStyleSheet("font-size: 9px; color: #2c3e50; margin: 1px 0px;")
+        layout.addWidget(self.area_utilization_label)
+        
+        # 简化的进度条
+        self.area_progress = QProgressBar()
+        self.area_progress.setMaximumHeight(8)
+        self.area_progress.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #bdc3c7;
+                border-radius: 3px;
+                background-color: #ecf0f1;
+            }
+            QProgressBar::chunk {
+                background-color: #3498db;
+                border-radius: 2px;
+            }
+        """)
+        layout.addWidget(self.area_progress)
+        
+        # 已用面积信息
+        self.area_stats_label = QLabel("已用: -")
+        self.area_stats_label.setStyleSheet("font-size: 9px; color: #2c3e50; margin: 1px 0px;")
+        layout.addWidget(self.area_stats_label)
+        
+        return widget
+    
+    def create_compact_selection_info(self):
+        """创建紧凑的选择信息"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setSpacing(2)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # 小标题
+        title = QLabel("当前选中")
+        title.setStyleSheet("font-weight: bold; font-size: 10px; color: #34495e;")
+        layout.addWidget(title)
+        
+        # 选中箱子信息
+        self.selected_box_id_label = QLabel("箱号: -")
+        self.selected_box_size_label = QLabel("尺寸: -")
+        self.selected_box_weight_label = QLabel("重量: -")
+        self.selected_box_pos_label = QLabel("位置: -")
+        
+        # 统一样式
+        label_style = "font-size: 9px; color: #2c3e50; margin: 1px 0px;"
+        for label in [self.selected_box_id_label, self.selected_box_size_label,
+                     self.selected_box_weight_label, self.selected_box_pos_label]:
+            label.setStyleSheet(label_style)
+            layout.addWidget(label)
+        
+        return widget
+    
+    def create_enlarged_selection_info(self):
+        """创建简洁的选中箱子信息"""
+        widget = QWidget()
+        widget.setStyleSheet("background-color: #f5f5f5; border: 1px solid #ddd;")
+        
+        layout = QVBoxLayout(widget)
+        layout.setSpacing(5)
+        layout.setContentsMargins(10, 10, 10, 10)
         
         # 标题
-        title_label = QLabel("信息面板")
-        title_label.setStyleSheet("font-weight: bold; font-size: 14px; padding: 5px;")
-        scroll_layout.addWidget(title_label)
+        title = QLabel("当前选中箱子")
+        title.setStyleSheet("font-weight: bold; font-size: 14px; color: #2c3e50; padding: 5px;")
+        layout.addWidget(title)
         
-        # 集装箱信息组
-        self.container_info_group = self.create_container_info_group()
-        scroll_layout.addWidget(self.container_info_group)
+        # 箱号
+        self.selected_box_id_label = QLabel("箱号: 未选择")
+        self.selected_box_id_label.setStyleSheet("font-size: 12px; padding: 5px;")
+        layout.addWidget(self.selected_box_id_label)
         
-        # 重量平衡组
-        self.weight_balance_group = self.create_weight_balance_group()
-        scroll_layout.addWidget(self.weight_balance_group)
+        # 尺寸
+        self.selected_box_size_label = QLabel("尺寸: -")
+        self.selected_box_size_label.setStyleSheet("font-size: 12px; padding: 5px;")
+        layout.addWidget(self.selected_box_size_label)
         
-        # 空间利用率组
-        self.space_utilization_group = self.create_space_utilization_group()
-        scroll_layout.addWidget(self.space_utilization_group)
+        # 重量
+        self.selected_box_weight_label = QLabel("重量: -")
+        self.selected_box_weight_label.setStyleSheet("font-size: 12px; padding: 5px;")
+        layout.addWidget(self.selected_box_weight_label)
         
-        # 选中箱子信息组
-        self.selected_box_group = self.create_selected_box_group()
-        scroll_layout.addWidget(self.selected_box_group)
+        # 位置
+        self.selected_box_pos_label = QLabel("位置: -")
+        self.selected_box_pos_label.setStyleSheet("font-size: 12px; padding: 5px;")
+        layout.addWidget(self.selected_box_pos_label)
         
-        # 建议和警告组
-        self.suggestions_group = self.create_suggestions_group()
-        scroll_layout.addWidget(self.suggestions_group)
+        # 状态
+        self.selected_box_rotated_label = QLabel("状态: -")
+        self.selected_box_rotated_label.setStyleSheet("font-size: 12px; padding: 5px;")
+        layout.addWidget(self.selected_box_rotated_label)
         
-        scroll_layout.addStretch()
-        scroll_area.setWidget(scroll_widget)
-        layout.addWidget(scroll_area)
+        layout.addStretch()
+        
+        return widget
     
     def create_container_info_group(self) -> QGroupBox:
         """创建集装箱信息组"""
@@ -168,25 +286,9 @@ class InfoPanel(QWidget):
     
     def show_container_info(self, container: Container):
         """显示集装箱信息"""
-        if not container:
-            self.clear_container_info()
-            return
-        
-        # 集装箱基本信息
-        self.container_name_label.setText(f"名称: {container.name}")
-        self.container_size_label.setText(f"尺寸: {container.length/1000:.1f}×{container.width/1000:.1f}m")
-        self.container_box_count_label.setText(f"箱子数量: {len(container.boxes)}")
-        self.container_total_weight_label.setText(f"总重量: {container.total_weight:.1f}kg")
-        
-        # 重量平衡信息
-        balance_info = container.calculate_weight_balance()
-        self.update_weight_balance_display(balance_info)
-        
-        # 空间利用率信息
-        self.update_space_utilization_display(container)
-        
-        # 生成建议和警告
-        self.update_suggestions(container, balance_info)
+        # 由于界面简化，这个方法现在不需要显示集装箱信息
+        # 集装箱信息已经移动到集装箱视图的顶部平衡信息栏
+        pass
     
     def show_box_info(self, box: Box):
         """显示箱子信息"""
@@ -194,11 +296,29 @@ class InfoPanel(QWidget):
             self.clear_box_info()
             return
         
-        self.selected_box_id_label.setText(f"ID: {box.id}")
-        self.selected_box_size_label.setText(f"尺寸: {box.length}×{box.width}mm")
-        self.selected_box_weight_label.setText(f"重量: {box.weight}kg")
-        self.selected_box_position_label.setText(f"位置: ({box.x:.0f}, {box.y:.0f})")
-        self.selected_box_rotated_label.setText(f"旋转: {'是' if box.rotated else '否'}")
+        self.selected_box_id_label.setText(f"箱号: {box.id}")
+        self.selected_box_size_label.setText(f"尺寸: {box.length} × {box.width} mm")
+        self.selected_box_weight_label.setText(f"重量: {box.weight} kg")
+        self.selected_box_pos_label.setText(f"位置: ({box.x:.0f}, {box.y:.0f}) mm")
+        
+        # 显示旋转状态
+        if hasattr(box, 'rotated') and box.rotated:
+            self.selected_box_rotated_label.setText("状态: 已旋转 90°")
+        else:
+            self.selected_box_rotated_label.setText("状态: 正常方向")
+    
+    def clear_container_info(self):
+        """清除集装箱信息"""
+        # 由于界面简化，这个方法现在不需要清除集装箱信息
+        pass
+    
+    def clear_box_info(self):
+        """清除箱子信息"""
+        self.selected_box_id_label.setText("箱号: 未选择")
+        self.selected_box_size_label.setText("尺寸: -")
+        self.selected_box_weight_label.setText("重量: -")
+        self.selected_box_pos_label.setText("位置: -")
+        self.selected_box_rotated_label.setText("状态: -")
     
     def update_weight_balance_display(self, balance_info: dict):
         """更新重量平衡显示"""
@@ -302,28 +422,4 @@ class InfoPanel(QWidget):
         else:
             self.suggestions_text.setText("暂无建议")
     
-    def clear_container_info(self):
-        """清空集装箱信息"""
-        self.container_name_label.setText("名称: -")
-        self.container_size_label.setText("尺寸: -")
-        self.container_box_count_label.setText("箱子数量: -")
-        self.container_total_weight_label.setText("总重量: -")
-        
-        self.lr_balance_label.setText("- / -")
-        self.lr_diff_label.setText("差值: -")
-        self.fr_balance_label.setText("- / -")
-        self.fr_diff_label.setText("差值: -")
-        self.center_label.setText("重心: -")
-        
-        self.area_utilization_label.setText("0%")
-        self.area_stats_label.setText("已用: 0 m² / 总计: 0 m²")
-        
-        self.suggestions_text.clear()
     
-    def clear_box_info(self):
-        """清空箱子信息"""
-        self.selected_box_id_label.setText("ID: -")
-        self.selected_box_size_label.setText("尺寸: -")
-        self.selected_box_weight_label.setText("重量: -")
-        self.selected_box_position_label.setText("位置: -")
-        self.selected_box_rotated_label.setText("旋转: -")
