@@ -214,12 +214,12 @@ class PDFGenerator:
             ["项目", "数值", "状态"],
             ["左侧重量", f"{balance_info['left_weight']:.1f} kg", ""],
             ["右侧重量", f"{balance_info['right_weight']:.1f} kg", ""],
-            ["左右重量差", f"{balance_info['lr_diff']:.1f} kg", 
-             "正常" if balance_info['lr_diff'] < 500 else "超限"],
+            ["左右扭矩", f"{balance_info['lr_torque']/1000:.1f} kg·m", 
+             "正常" if balance_info['lr_torque'] <= balance_info['lr_torque_limit'] else "超限"],
             ["前部重量", f"{balance_info['front_weight']:.1f} kg", ""],
             ["后部重量", f"{balance_info['rear_weight']:.1f} kg", ""],
-            ["前后重量差", f"{balance_info['fr_diff']:.1f} kg", 
-             "正常" if balance_info['fr_diff'] < 2000 else "超限"],
+            ["前后扭矩", f"{balance_info['fr_torque']/1000:.1f} kg·m", 
+             "正常" if balance_info['fr_torque'] <= balance_info['fr_torque_limit'] else "超限"],
             ["重心位置", f"({balance_info['center_x']/1000:.2f}m, {balance_info['center_y']/1000:.2f}m)", ""],
             ["整体平衡", "", "平衡" if balance_info['is_balanced'] else "不平衡"]
         ]
@@ -235,8 +235,8 @@ class PDFGenerator:
             ('BACKGROUND', (0, 1), (-1, -1), colors.white),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             # 为超限项目设置红色背景
-            ('BACKGROUND', (2, 3), (2, 3), colors.red if balance_info['lr_diff'] >= 500 else colors.lightgreen),
-            ('BACKGROUND', (2, 6), (2, 6), colors.red if balance_info['fr_diff'] >= 2000 else colors.lightgreen),
+            ('BACKGROUND', (2, 3), (2, 3), colors.red if balance_info['lr_torque'] > balance_info['lr_torque_limit'] else colors.lightgreen),
+            ('BACKGROUND', (2, 6), (2, 6), colors.red if balance_info['fr_torque'] > balance_info['fr_torque_limit'] else colors.lightgreen),
             ('BACKGROUND', (2, -1), (2, -1), colors.lightgreen if balance_info['is_balanced'] else colors.red),
         ]))
         

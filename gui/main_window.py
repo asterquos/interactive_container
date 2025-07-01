@@ -65,7 +65,7 @@ class MainWindow(QMainWindow):
     
     def init_ui(self):
         """初始化用户界面"""
-        self.setWindowTitle("Container Loading Management System v1.0")
+        self.setWindowTitle("Container Loading Management System v1.1")
         
         # 获取当前屏幕几何信息并居中显示
         from PyQt5.QtWidgets import QApplication, QDesktopWidget
@@ -660,21 +660,40 @@ class MainWindow(QMainWindow):
     
     def on_box_double_clicked(self, box):
         """箱子被双击"""
+        self.log_message(f"双击箱子: {box.id}, 当前位置: ({box.x}, {box.y})")
+        self.log_message(f"当前待装载箱子数量: {len(self.pending_boxes)}")
+        self.log_message(f"箱子是否在待装载列表: {box in self.pending_boxes}")
+        
         if self.current_container:
+            self.log_message(f"集装箱中现有箱子数量: {len(self.current_container.boxes)}")
+            self.log_message(f"箱子是否已在集装箱: {box in self.current_container.boxes}")
+            
             # 尝试自动放置箱子
             position = self.current_container.find_placement_position(box)
+            self.log_message(f"找到的位置: {position}")
+            
             if position:
                 box.move_to(*position)
+                self.log_message(f"移动箱子到位置: {position}")
+                
                 if self.current_container.add_box(box):
-                    self.pending_boxes.remove(box)
+                    self.log_message(f"成功添加箱子到集装箱")
+                    if box in self.pending_boxes:
+                        self.pending_boxes.remove(box)
+                        self.log_message(f"从待装载列表移除箱子")
+                    else:
+                        self.log_message(f"警告: 箱子不在待装载列表中!")
+                    
                     self.box_list_panel.remove_box(box)
                     self.container_view.add_box(box)
                     self.update_status()
                     self.log_message(f"自动放置箱子: {box.id}")
                 else:
-                    self.log_message(f"无法放置箱子: {box.id}")
+                    self.log_message(f"无法添加箱子到集装箱: {box.id}")
             else:
                 self.log_message(f"找不到合适位置放置箱子: {box.id}")
+        else:
+            self.log_message("错误: 当前没有集装箱")
     
     def on_box_moved(self, box, new_x, new_y):
         """箱子被移动"""

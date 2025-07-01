@@ -255,6 +255,12 @@ class BoxGraphicsItem(QGraphicsRectItem):
             # 从集装箱移除
             container.remove_box(self.box)
             
+            # 从容器视图的box_items字典中移除
+            for view in self.scene().views():
+                if hasattr(view, 'box_items') and self.box in view.box_items:
+                    del view.box_items[self.box]
+                    break
+            
             # 从场景移除
             if self.scene():
                 self.scene().removeItem(self)
@@ -421,24 +427,92 @@ class ContainerGraphicsView(QGraphicsView):
         center_x = width / 2
         center_y = height / 2
         
-        # 纵向中心线（左右平衡轴）
+        # 纵向中心线（前后平衡轴）
         center_line_pen = QPen(QColor(255, 0, 0), 2, Qt.DashLine)
         v_center_line = self.scene.addLine(center_x, 0, center_x, height, center_line_pen)
         v_center_line.setZValue(1)
         
-        # 横向中心线（前后平衡轴）
+        # 横向中心线（左右平衡轴）
         h_center_line = self.scene.addLine(0, center_y, width, center_y, center_line_pen)
         h_center_line.setZValue(1)
         
         # 添加轴线标签
-        v_label = self.scene.addText("左右平衡轴", QFont("Arial", 8))
+        v_label = self.scene.addText("前后平衡轴", QFont("Arial", 8))
         v_label.setPos(center_x + 5, 5)
         v_label.setDefaultTextColor(QColor(255, 0, 0))
         
-        h_label = self.scene.addText("前后平衡轴", QFont("Arial", 8))
+        h_label = self.scene.addText("左右平衡轴", QFont("Arial", 8))
         h_label.setPos(5, center_y + 5)
         h_label.setDefaultTextColor(QColor(255, 0, 0))
+        
+        # 添加坐标轴箭头
+        self.draw_coordinate_axes(width, height)
     
+    def draw_coordinate_axes(self, width, height):
+        """绘制坐标轴箭头"""
+        from PyQt5.QtCore import QPointF
+        from PyQt5.QtWidgets import QGraphicsPolygonItem
+        from PyQt5.QtGui import QPolygonF
+        
+        # 箭头参数
+        arrow_size = 15
+        axis_color = QColor(50, 50, 50)
+        axis_pen = QPen(axis_color, 3)
+        axis_brush = QBrush(axis_color)
+        
+        # X轴箭头（前后方向，水平向右）
+        x_axis_start = QPointF(20, height - 30)
+        x_axis_end = QPointF(80, height - 30)
+        
+        # X轴线
+        x_line = self.scene.addLine(x_axis_start.x(), x_axis_start.y(), 
+                                   x_axis_end.x(), x_axis_end.y(), axis_pen)
+        x_line.setZValue(10)
+        
+        # X轴箭头
+        x_arrow_points = [
+            QPointF(x_axis_end.x(), x_axis_end.y()),
+            QPointF(x_axis_end.x() - arrow_size, x_axis_end.y() - arrow_size/2),
+            QPointF(x_axis_end.x() - arrow_size, x_axis_end.y() + arrow_size/2)
+        ]
+        x_arrow = QGraphicsPolygonItem(QPolygonF(x_arrow_points))
+        x_arrow.setBrush(axis_brush)
+        x_arrow.setPen(axis_pen)
+        x_arrow.setZValue(10)
+        self.scene.addItem(x_arrow)
+        
+        # X轴标签
+        x_label = self.scene.addText("前→后 (X)", QFont("Arial", 9))
+        x_label.setPos(x_axis_end.x() + 5, x_axis_end.y() - 10)
+        x_label.setDefaultTextColor(axis_color)
+        x_label.setZValue(10)
+        
+        # Y轴箭头（左右方向，垂直向下）
+        y_axis_start = QPointF(20, height - 90)
+        y_axis_end = QPointF(20, height - 30)
+        
+        # Y轴线
+        y_line = self.scene.addLine(y_axis_start.x(), y_axis_start.y(), 
+                                   y_axis_end.x(), y_axis_end.y(), axis_pen)
+        y_line.setZValue(10)
+        
+        # Y轴箭头
+        y_arrow_points = [
+            QPointF(y_axis_end.x(), y_axis_end.y()),
+            QPointF(y_axis_end.x() - arrow_size/2, y_axis_end.y() - arrow_size),
+            QPointF(y_axis_end.x() + arrow_size/2, y_axis_end.y() - arrow_size)
+        ]
+        y_arrow = QGraphicsPolygonItem(QPolygonF(y_arrow_points))
+        y_arrow.setBrush(axis_brush)
+        y_arrow.setPen(axis_pen)
+        y_arrow.setZValue(10)
+        self.scene.addItem(y_arrow)
+        
+        # Y轴标签
+        y_label = self.scene.addText("左→右 (Y)", QFont("Arial", 9))
+        y_label.setPos(y_axis_start.x() + 5, y_axis_start.y() - 10)
+        y_label.setDefaultTextColor(axis_color)
+        y_label.setZValue(10)
     
     def draw_boxes(self):
         """绘制箱子"""
@@ -817,27 +891,34 @@ class ContainerView(QWidget):
         self.status_label.setText("就绪")
     
     def update_balance_info(self, balance_info):
-        """更新重量平衡信息"""
-        # 获取重量数据
+        """更新重量平衡信息（基于扭矩）"""
+        # 获取重量和扭矩数据
         left_weight = balance_info['left_weight']
         right_weight = balance_info['right_weight']
         front_weight = balance_info['front_weight']
         rear_weight = balance_info['rear_weight']
-        lr_diff = balance_info['lr_diff']
-        fr_diff = balance_info['fr_diff']
+        lr_torque = balance_info['lr_torque']
+        fr_torque = balance_info['fr_torque']
+        lr_torque_limit = balance_info['lr_torque_limit']
+        fr_torque_limit = balance_info['fr_torque_limit']
         
-        # 更新各区域重量
-        self.left_weight_label.setText(f"左: {left_weight:.1f}kg")
-        self.right_weight_label.setText(f"右: {right_weight:.1f}kg")
-        self.lr_diff_label.setText(f"左右差: {lr_diff:.1f}kg")
+        # 更新各区域扭矩
+        left_torque = balance_info['left_torque']
+        right_torque = balance_info['right_torque']
+        front_torque = balance_info['front_torque']
+        rear_torque = balance_info['rear_torque']
         
-        self.front_weight_label.setText(f"前: {front_weight:.1f}kg")
-        self.rear_weight_label.setText(f"后: {rear_weight:.1f}kg")
-        self.fr_diff_label.setText(f"前后差: {fr_diff:.1f}kg")
+        self.left_weight_label.setText(f"左: {left_torque/1000:.1f}kg·m")
+        self.right_weight_label.setText(f"右: {right_torque/1000:.1f}kg·m")
+        self.lr_diff_label.setText(f"左右扭矩差距: {lr_torque/1000:.1f}kg·m")
         
-        # 判断平衡状态
-        lr_ok = lr_diff < 500
-        fb_ok = fr_diff < 2000
+        self.front_weight_label.setText(f"前: {front_torque/1000:.1f}kg·m")
+        self.rear_weight_label.setText(f"后: {rear_torque/1000:.1f}kg·m")
+        self.fr_diff_label.setText(f"前后扭矩差距: {fr_torque/1000:.1f}kg·m")
+        
+        # 判断平衡状态（基于扭矩）
+        lr_ok = lr_torque <= lr_torque_limit
+        fb_ok = fr_torque <= fr_torque_limit
         
         # 设置颜色和状态
         if lr_ok and fb_ok:

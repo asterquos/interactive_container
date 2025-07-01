@@ -152,7 +152,8 @@ def create_readme():
 def main():
     """主函数"""
     print("=" * 50)
-    print("集装箱装载管理系统 - Windows打包工具")
+    print("集装箱装载管理系统 v1.1 - Windows打包工具")
+    print("支持扭矩平衡计算和坐标轴显示")
     print("=" * 50)
     
     # 检查是否在虚拟环境中

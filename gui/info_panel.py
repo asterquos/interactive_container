@@ -198,7 +198,7 @@ class InfoPanel(QWidget):
         lr_layout = QHBoxLayout()
         lr_layout.addWidget(QLabel("左右:"))
         self.lr_balance_label = QLabel("- / -")
-        self.lr_diff_label = QLabel("差值: -")
+        self.lr_diff_label = QLabel("扭矩差距: -")
         lr_layout.addWidget(self.lr_balance_label)
         lr_layout.addWidget(self.lr_diff_label)
         layout.addLayout(lr_layout)
@@ -213,7 +213,7 @@ class InfoPanel(QWidget):
         fr_layout = QHBoxLayout()
         fr_layout.addWidget(QLabel("前后:"))
         self.fr_balance_label = QLabel("- / -")
-        self.fr_diff_label = QLabel("差值: -")
+        self.fr_diff_label = QLabel("扭矩差距: -")
         fr_layout.addWidget(self.fr_balance_label)
         fr_layout.addWidget(self.fr_diff_label)
         layout.addLayout(fr_layout)
@@ -321,45 +321,48 @@ class InfoPanel(QWidget):
         self.selected_box_rotated_label.setText("状态: -")
     
     def update_weight_balance_display(self, balance_info: dict):
-        """更新重量平衡显示"""
+        """更新重量平衡显示（基于扭矩）"""
         # 左右平衡
-        left_weight = balance_info['left_weight']
-        right_weight = balance_info['right_weight']
-        lr_diff = balance_info['lr_diff']
+        left_torque = balance_info['left_torque']
+        right_torque = balance_info['right_torque']
+        lr_torque = balance_info['lr_torque']
+        lr_torque_limit = balance_info['lr_torque_limit']
         
-        self.lr_balance_label.setText(f"{left_weight:.1f} / {right_weight:.1f}kg")
-        self.lr_diff_label.setText(f"差值: {lr_diff:.1f}kg")
+        self.lr_balance_label.setText(f"{left_torque/1000:.1f} / {right_torque/1000:.1f}kg·m")
+        self.lr_diff_label.setText(f"扭矩差距: {lr_torque/1000:.1f}kg·m")
         
         # 设置进度条和颜色
-        total_weight = left_weight + right_weight
-        if total_weight > 0:
-            lr_percentage = int((left_weight / total_weight) * 100)
+        total_torque = left_torque + right_torque
+        if total_torque > 0:
+            lr_percentage = int((left_torque / total_torque) * 100)
             self.lr_balance_bar.setValue(lr_percentage)
             
-            # 根据差值设置颜色
-            if lr_diff > 500:  # 超出限制
+            # 根据扭矩设置颜色
+            if lr_torque > lr_torque_limit:  # 超出限制
                 self.lr_balance_bar.setStyleSheet("QProgressBar::chunk { background-color: red; }")
-            elif lr_diff > 250:  # 接近限制
+            elif lr_torque > lr_torque_limit * 0.8:  # 接近限制（80%）
                 self.lr_balance_bar.setStyleSheet("QProgressBar::chunk { background-color: orange; }")
             else:
                 self.lr_balance_bar.setStyleSheet("QProgressBar::chunk { background-color: green; }")
         
         # 前后平衡
-        front_weight = balance_info['front_weight']
-        rear_weight = balance_info['rear_weight']
-        fr_diff = balance_info['fr_diff']
+        front_torque = balance_info['front_torque']
+        rear_torque = balance_info['rear_torque']
+        fr_torque = balance_info['fr_torque']
+        fr_torque_limit = balance_info['fr_torque_limit']
         
-        self.fr_balance_label.setText(f"{front_weight:.1f} / {rear_weight:.1f}kg")
-        self.fr_diff_label.setText(f"差值: {fr_diff:.1f}kg")
+        self.fr_balance_label.setText(f"{front_torque/1000:.1f} / {rear_torque/1000:.1f}kg·m")
+        self.fr_diff_label.setText(f"扭矩差距: {fr_torque/1000:.1f}kg·m")
         
-        if total_weight > 0:
-            fr_percentage = int((front_weight / total_weight) * 100)
+        total_fr_torque = front_torque + rear_torque
+        if total_fr_torque > 0:
+            fr_percentage = int((front_torque / total_fr_torque) * 100)
             self.fr_balance_bar.setValue(fr_percentage)
             
-            # 根据差值设置颜色
-            if fr_diff > 2000:  # 超出限制
+            # 根据扭矩设置颜色
+            if fr_torque > fr_torque_limit:  # 超出限制
                 self.fr_balance_bar.setStyleSheet("QProgressBar::chunk { background-color: red; }")
-            elif fr_diff > 1000:  # 接近限制
+            elif fr_torque > fr_torque_limit * 0.8:  # 接近限制（80%）
                 self.fr_balance_bar.setStyleSheet("QProgressBar::chunk { background-color: orange; }")
             else:
                 self.fr_balance_bar.setStyleSheet("QProgressBar::chunk { background-color: green; }")
