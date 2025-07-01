@@ -29,9 +29,7 @@ def copy_resources():
         print("复制测试数据...")
         shutil.copytree('test_data', 'dist/test_data', dirs_exist_ok=True)
     
-    # 复制README
-    if os.path.exists('README.md'):
-        shutil.copy2('README.md', 'dist/')
+    # README.md已不存在，跳过
     
     # 复制使用说明
     if os.path.exists('使用说明.txt'):
@@ -49,7 +47,6 @@ a = Analysis(
     binaries=[],
     datas=[
         ('test_data', 'test_data'),
-        ('使用说明.txt', '.'),
     ],
     hiddenimports=[
         'PyQt5.QtCore',
@@ -143,43 +140,13 @@ start "" "集装箱装载管理系统\\集装箱装载管理系统.exe"
     print("已创建启动批处理文件")
 
 def create_readme():
-    """创建用户说明文件"""
-    readme_content = '''# 集装箱装载管理系统
-
-## 使用说明
-
-### 启动程序
-双击 "启动集装箱管理系统.bat" 或直接运行 "集装箱装载管理系统.exe"
-
-### 基本功能
-1. **导入数据**: 文件 → 导入Excel文件
-2. **创建集装箱**: 集装箱 → 新建集装箱
-3. **拖拽装载**: 从左侧列表拖拽箱子到中央集装箱区域
-4. **调整位置**: 直接拖动箱子调整位置
-5. **旋转箱子**: 右键点击箱子选择旋转
-6. **保存项目**: 文件 → 保存项目
-
-### 示例数据
-程序包含示例数据，可通过 "测试 → 加载示例数据" 快速体验功能
-
-### 系统要求
-- Windows 7/8/10/11
-- 内存: 4GB以上推荐
-- 磁盘空间: 500MB
-
-### 技术支持
-如遇到问题，请检查：
-1. 是否有杀毒软件误报
-2. 是否有足够的磁盘空间
-3. Excel文件格式是否正确
-
-版本: 1.0.0
-'''
-    
-    with open('dist/使用说明.txt', 'w', encoding='utf-8') as f:
-        f.write(readme_content)
-    
-    print("已创建用户说明文件")
+    """复制已有的使用说明文件"""
+    # 直接复制已有的使用说明.txt
+    if os.path.exists('使用说明.txt'):
+        shutil.copy2('使用说明.txt', 'dist/')
+        print("已复制使用说明文件")
+    else:
+        print("警告: 未找到使用说明.txt文件")
 
 def main():
     """主函数"""
