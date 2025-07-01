@@ -9,7 +9,7 @@ class Container:
     """集装箱类"""
     
     # 标准集装箱尺寸 (mm)
-    DEFAULT_LENGTH = 11800
+    DEFAULT_LENGTH = 11900
     DEFAULT_WIDTH = 2300
     
     def __init__(self, name: str = "Container", length: float = None, width: float = None):
