@@ -427,21 +427,21 @@ class ContainerGraphicsView(QGraphicsView):
         center_x = width / 2
         center_y = height / 2
         
-        # 纵向中心线（前后平衡轴）
+        # 纵向中心线（左右平衡轴）
         center_line_pen = QPen(QColor(255, 0, 0), 2, Qt.DashLine)
         v_center_line = self.scene.addLine(center_x, 0, center_x, height, center_line_pen)
         v_center_line.setZValue(1)
         
-        # 横向中心线（左右平衡轴）
+        # 横向中心线（前后平衡轴）
         h_center_line = self.scene.addLine(0, center_y, width, center_y, center_line_pen)
         h_center_line.setZValue(1)
         
         # 添加轴线标签
-        v_label = self.scene.addText("前后平衡轴", QFont("Arial", 8))
+        v_label = self.scene.addText("左右平衡轴", QFont("Arial", 8))
         v_label.setPos(center_x + 5, 5)
         v_label.setDefaultTextColor(QColor(255, 0, 0))
         
-        h_label = self.scene.addText("上下平衡轴", QFont("Arial", 8))
+        h_label = self.scene.addText("前后平衡轴", QFont("Arial", 8))
         h_label.setPos(5, center_y + 5)
         h_label.setDefaultTextColor(QColor(255, 0, 0))
         
@@ -452,31 +452,31 @@ class ContainerGraphicsView(QGraphicsView):
         """绘制方向水印"""
         # 水印参数
         watermark_size = 50
-        watermark_font = QFont("Arial", 14, QFont.Bold)
+        watermark_font = QFont("Arial", 36, QFont.Bold)  # 增大字体以达到50px效果
         watermark_color = QColor(150, 150, 150, 120)  # 半透明灰色
         
-        # 前方水印 (顶部中央)
+        # 前方水印 (左侧中央，距离中线50px)
         front_text = self.scene.addText("前", watermark_font)
         front_text.setDefaultTextColor(watermark_color)
-        front_text.setPos(width/2 - watermark_size/4, 10)
+        front_text.setPos(50, height/2 - 25)  # 距离左边50px，垂直居中
         front_text.setZValue(-0.5)  # 在网格之上，箱子之下
         
-        # 后方水印 (底部中央)
+        # 后方水印 (右侧中央，距离中线50px)
         rear_text = self.scene.addText("后", watermark_font)
         rear_text.setDefaultTextColor(watermark_color)
-        rear_text.setPos(width/2 - watermark_size/4, height - watermark_size)
+        rear_text.setPos(width - 100, height/2 - 25)  # 距离右边50px，垂直居中
         rear_text.setZValue(-0.5)
         
-        # 左侧水印 (左侧中央) - 界面下方
-        left_text = self.scene.addText("下", watermark_font)
+        # 左侧水印 (底部中央，距离中线50px)
+        left_text = self.scene.addText("左", watermark_font)
         left_text.setDefaultTextColor(watermark_color)
-        left_text.setPos(10, height/2 - watermark_size/4)
+        left_text.setPos(width/2 - 25, height - 100)  # 水平居中，距离底部50px
         left_text.setZValue(-0.5)
         
-        # 右侧水印 (右侧中央) - 界面上方
-        right_text = self.scene.addText("上", watermark_font)
+        # 右侧水印 (顶部中央，距离中线50px)
+        right_text = self.scene.addText("右", watermark_font)
         right_text.setDefaultTextColor(watermark_color)
-        right_text.setPos(width - watermark_size, height/2 - watermark_size/4)
+        right_text.setPos(width/2 - 25, 50)  # 水平居中，距离顶部50px
         right_text.setZValue(-0.5)
     
     def draw_boxes(self):
@@ -873,9 +873,9 @@ class ContainerView(QWidget):
         front_torque = balance_info['front_torque']
         rear_torque = balance_info['rear_torque']
         
-        self.left_weight_label.setText(f"下: {left_torque/1000:.1f}kg·m")
-        self.right_weight_label.setText(f"上: {right_torque/1000:.1f}kg·m")
-        self.lr_diff_label.setText(f"上下扭矩差距: {lr_torque/1000:.1f}kg·m")
+        self.left_weight_label.setText(f"左: {left_torque/1000:.1f}kg·m")
+        self.right_weight_label.setText(f"右: {right_torque/1000:.1f}kg·m")
+        self.lr_diff_label.setText(f"左右扭矩差距: {lr_torque/1000:.1f}kg·m")
         
         self.front_weight_label.setText(f"前: {front_torque/1000:.1f}kg·m")
         self.rear_weight_label.setText(f"后: {rear_torque/1000:.1f}kg·m")

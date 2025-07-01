@@ -125,9 +125,9 @@ class Container:
         center_y_line = self.width / 2   # 左右分界线（Y轴方向）
         
         # 初始化区域重量和扭矩
-        # 注意：界面显示概念 - 左侧(下方)对应Y<center_y，右侧(上方)对应Y>=center_y
-        left_weight = 0    # Y < center_y (界面下方)
-        right_weight = 0   # Y >= center_y (界面上方)
+        # 注意：界面显示概念 - 左侧(下方)对应Y>=center_y，右侧(上方)对应Y<center_y
+        left_weight = 0    # Y >= center_y (界面下方)
+        right_weight = 0   # Y < center_y (界面上方)
         front_weight = 0   # X < center_x (前方)
         rear_weight = 0    # X >= center_x (后方)
         
@@ -158,13 +158,13 @@ class Container:
             
             # 计算左右分配和扭矩（沿Y轴方向）
             if box_center_y < center_y_line:
-                # 质心在左侧(界面下方)
-                left_weight += box.weight
-                left_torque += box.weight * distance_to_lr_line
-            else:
                 # 质心在右侧(界面上方)
                 right_weight += box.weight
                 right_torque += box.weight * distance_to_lr_line
+            else:
+                # 质心在左侧(界面下方)
+                left_weight += box.weight
+                left_torque += box.weight * distance_to_lr_line
         
         # 计算净扭矩（左右和前后的扭矩差值）
         lr_torque = abs(left_torque - right_torque)
