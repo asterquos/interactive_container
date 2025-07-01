@@ -140,7 +140,7 @@ class InfoPanel(QWidget):
         
         # 标题
         title = QLabel("当前选中箱子")
-        title.setStyleSheet("font-weight: bold; font-size: 14px; color: #2c3e50; padding: 5px;")
+        title.setStyleSheet("font-weight: bold; font-size: 13px; color: #2c3e50; padding: 5px;")
         layout.addWidget(title)
         
         # 箱号

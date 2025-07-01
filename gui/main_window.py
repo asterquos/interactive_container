@@ -385,7 +385,6 @@ class MainWindow(QMainWindow):
         if file_path:
             try:
                 from utils.pdf_generator import PDFGenerator
-                from datetime import datetime
                 
                 generator = PDFGenerator()
                 success = generator.generate_report(self.containers, file_path, True)

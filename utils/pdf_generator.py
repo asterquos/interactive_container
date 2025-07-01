@@ -8,9 +8,13 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.graphics.shapes import Drawing, Rect, String
 from reportlab.graphics import renderPDF
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase.pdfmetrics import registerFontFamily
 from datetime import datetime
 from typing import List
 import os
+import platform
 
 from core.container import Container
 from core.box import Box
@@ -19,15 +23,61 @@ class PDFGenerator:
     """PDF报告生成器"""
     
     def __init__(self):
+        self.register_chinese_fonts()
         self.styles = getSampleStyleSheet()
         self.setup_custom_styles()
     
+    def register_chinese_fonts(self):
+        """注册中文字体"""
+        try:
+            # 尝试使用系统字体
+            if platform.system() == 'Windows':
+                # Windows系统
+                font_paths = [
+                    'C:/Windows/Fonts/simhei.ttf',  # 黑体
+                    'C:/Windows/Fonts/simsun.ttc',  # 宋体
+                    'C:/Windows/Fonts/msyh.ttf',    # 微软雅黑
+                ]
+            else:
+                # Linux/Mac系统
+                font_paths = [
+                    '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+                    '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+                    '/System/Library/Fonts/Helvetica.ttc',
+                ]
+            
+            # 尝试注册字体
+            for font_path in font_paths:
+                if os.path.exists(font_path):
+                    try:
+                        pdfmetrics.registerFont(TTFont('ChineseFont', font_path))
+                        print(f"成功注册字体: {font_path}")
+                        return
+                    except:
+                        continue
+            
+            # 如果没有找到中文字体，使用默认字体
+            print("警告: 未找到中文字体，使用默认字体")
+            
+        except Exception as e:
+            print(f"注册字体时出错: {e}")
+    
+    def get_font_name(self, bold=False):
+        """获取可用的字体名称"""
+        if 'ChineseFont' in pdfmetrics.getRegisteredFontNames():
+            return 'ChineseFont'
+        return 'Helvetica-Bold' if bold else 'Helvetica'
+    
     def setup_custom_styles(self):
         """设置自定义样式"""
+        # 检查是否有中文字体
+        font_name = 'ChineseFont' if 'ChineseFont' in pdfmetrics.getRegisteredFontNames() else 'Helvetica'
+        
         # 标题样式
         self.title_style = ParagraphStyle(
             'CustomTitle',
             parent=self.styles['Title'],
+            fontName=font_name,
             fontSize=18,
             spaceAfter=20,
             alignment=1,  # 居中
@@ -38,6 +88,7 @@ class PDFGenerator:
         self.heading_style = ParagraphStyle(
             'CustomHeading',
             parent=self.styles['Heading2'],
+            fontName=font_name,
             fontSize=14,
             spaceAfter=12,
             textColor=colors.darkblue
@@ -47,6 +98,7 @@ class PDFGenerator:
         self.body_style = ParagraphStyle(
             'CustomBody',
             parent=self.styles['Normal'],
+            fontName=font_name,
             fontSize=10,
             spaceAfter=6
         )
@@ -65,6 +117,8 @@ class PDFGenerator:
             bool: 生成是否成功
         """
         try:
+            print(f"开始生成PDF报告: {output_path}")
+            
             # 创建PDF文档
             doc = SimpleDocTemplate(
                 output_path,
@@ -79,26 +133,34 @@ class PDFGenerator:
             story = []
             
             # 添加标题页
+            print("添加标题页...")
             self.add_title_page(story)
             
             # 添加概览
+            print("添加概览...")
             self.add_overview(story, containers)
             
             # 为每个集装箱生成详细报告
             for i, container in enumerate(containers):
+                print(f"处理集装箱 {i+1}/{len(containers)}: {container.name}")
                 if i > 0:
                     story.append(PageBreak())
                 self.add_container_report(story, container, include_visualization)
             
             # 添加总结
+            print("添加总结...")
             self.add_summary(story, containers)
             
             # 生成PDF
+            print("正在生成PDF文件...")
             doc.build(story)
+            print(f"PDF报告生成成功: {output_path}")
             return True
             
         except Exception as e:
             print(f"生成PDF报告时出错: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def add_title_page(self, story: List):
@@ -150,7 +212,8 @@ class PDFGenerator:
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 0), (-1, 0), 'ChineseFont' if 'ChineseFont' in pdfmetrics.getRegisteredFontNames() else 'Helvetica-Bold'),
+            ('FONTNAME', (0, 1), (-1, -1), 'ChineseFont' if 'ChineseFont' in pdfmetrics.getRegisteredFontNames() else 'Helvetica'),
             ('FONTSIZE', (0, 0), (-1, -1), 10),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
             ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
@@ -182,7 +245,7 @@ class PDFGenerator:
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 0), (-1, 0), 'ChineseFont' if 'ChineseFont' in pdfmetrics.getRegisteredFontNames() else 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
             ('BACKGROUND', (0, 1), (-1, -1), colors.white),
@@ -229,7 +292,7 @@ class PDFGenerator:
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 0), (-1, 0), 'ChineseFont' if 'ChineseFont' in pdfmetrics.getRegisteredFontNames() else 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
             ('BACKGROUND', (0, 1), (-1, -1), colors.white),
@@ -265,7 +328,7 @@ class PDFGenerator:
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 0), (-1, 0), 'ChineseFont' if 'ChineseFont' in pdfmetrics.getRegisteredFontNames() else 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 8),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
             ('BACKGROUND', (0, 1), (-1, -1), colors.white),
