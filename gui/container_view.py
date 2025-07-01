@@ -441,78 +441,43 @@ class ContainerGraphicsView(QGraphicsView):
         v_label.setPos(center_x + 5, 5)
         v_label.setDefaultTextColor(QColor(255, 0, 0))
         
-        h_label = self.scene.addText("左右平衡轴", QFont("Arial", 8))
+        h_label = self.scene.addText("上下平衡轴", QFont("Arial", 8))
         h_label.setPos(5, center_y + 5)
         h_label.setDefaultTextColor(QColor(255, 0, 0))
         
-        # 添加坐标轴箭头
-        self.draw_coordinate_axes(width, height)
+        # 添加方向水印
+        self.draw_direction_watermarks(width, height)
     
-    def draw_coordinate_axes(self, width, height):
-        """绘制坐标轴箭头"""
-        from PyQt5.QtCore import QPointF
-        from PyQt5.QtWidgets import QGraphicsPolygonItem
-        from PyQt5.QtGui import QPolygonF
+    def draw_direction_watermarks(self, width, height):
+        """绘制方向水印"""
+        # 水印参数
+        watermark_size = 50
+        watermark_font = QFont("Arial", 14, QFont.Bold)
+        watermark_color = QColor(150, 150, 150, 120)  # 半透明灰色
         
-        # 箭头参数
-        arrow_size = 15
-        axis_color = QColor(50, 50, 50)
-        axis_pen = QPen(axis_color, 3)
-        axis_brush = QBrush(axis_color)
+        # 前方水印 (顶部中央)
+        front_text = self.scene.addText("前", watermark_font)
+        front_text.setDefaultTextColor(watermark_color)
+        front_text.setPos(width/2 - watermark_size/4, 10)
+        front_text.setZValue(-0.5)  # 在网格之上，箱子之下
         
-        # X轴箭头（前后方向，水平向右）
-        x_axis_start = QPointF(20, height - 30)
-        x_axis_end = QPointF(80, height - 30)
+        # 后方水印 (底部中央)
+        rear_text = self.scene.addText("后", watermark_font)
+        rear_text.setDefaultTextColor(watermark_color)
+        rear_text.setPos(width/2 - watermark_size/4, height - watermark_size)
+        rear_text.setZValue(-0.5)
         
-        # X轴线
-        x_line = self.scene.addLine(x_axis_start.x(), x_axis_start.y(), 
-                                   x_axis_end.x(), x_axis_end.y(), axis_pen)
-        x_line.setZValue(10)
+        # 左侧水印 (左侧中央) - 界面下方
+        left_text = self.scene.addText("下", watermark_font)
+        left_text.setDefaultTextColor(watermark_color)
+        left_text.setPos(10, height/2 - watermark_size/4)
+        left_text.setZValue(-0.5)
         
-        # X轴箭头
-        x_arrow_points = [
-            QPointF(x_axis_end.x(), x_axis_end.y()),
-            QPointF(x_axis_end.x() - arrow_size, x_axis_end.y() - arrow_size/2),
-            QPointF(x_axis_end.x() - arrow_size, x_axis_end.y() + arrow_size/2)
-        ]
-        x_arrow = QGraphicsPolygonItem(QPolygonF(x_arrow_points))
-        x_arrow.setBrush(axis_brush)
-        x_arrow.setPen(axis_pen)
-        x_arrow.setZValue(10)
-        self.scene.addItem(x_arrow)
-        
-        # X轴标签
-        x_label = self.scene.addText("前→后 (X)", QFont("Arial", 9))
-        x_label.setPos(x_axis_end.x() + 5, x_axis_end.y() - 10)
-        x_label.setDefaultTextColor(axis_color)
-        x_label.setZValue(10)
-        
-        # Y轴箭头（左右方向，垂直向下）
-        y_axis_start = QPointF(20, height - 90)
-        y_axis_end = QPointF(20, height - 30)
-        
-        # Y轴线
-        y_line = self.scene.addLine(y_axis_start.x(), y_axis_start.y(), 
-                                   y_axis_end.x(), y_axis_end.y(), axis_pen)
-        y_line.setZValue(10)
-        
-        # Y轴箭头
-        y_arrow_points = [
-            QPointF(y_axis_end.x(), y_axis_end.y()),
-            QPointF(y_axis_end.x() - arrow_size/2, y_axis_end.y() - arrow_size),
-            QPointF(y_axis_end.x() + arrow_size/2, y_axis_end.y() - arrow_size)
-        ]
-        y_arrow = QGraphicsPolygonItem(QPolygonF(y_arrow_points))
-        y_arrow.setBrush(axis_brush)
-        y_arrow.setPen(axis_pen)
-        y_arrow.setZValue(10)
-        self.scene.addItem(y_arrow)
-        
-        # Y轴标签
-        y_label = self.scene.addText("左→右 (Y)", QFont("Arial", 9))
-        y_label.setPos(y_axis_start.x() + 5, y_axis_start.y() - 10)
-        y_label.setDefaultTextColor(axis_color)
-        y_label.setZValue(10)
+        # 右侧水印 (右侧中央) - 界面上方
+        right_text = self.scene.addText("上", watermark_font)
+        right_text.setDefaultTextColor(watermark_color)
+        right_text.setPos(width - watermark_size, height/2 - watermark_size/4)
+        right_text.setZValue(-0.5)
     
     def draw_boxes(self):
         """绘制箱子"""
@@ -908,9 +873,9 @@ class ContainerView(QWidget):
         front_torque = balance_info['front_torque']
         rear_torque = balance_info['rear_torque']
         
-        self.left_weight_label.setText(f"左: {left_torque/1000:.1f}kg·m")
-        self.right_weight_label.setText(f"右: {right_torque/1000:.1f}kg·m")
-        self.lr_diff_label.setText(f"左右扭矩差距: {lr_torque/1000:.1f}kg·m")
+        self.left_weight_label.setText(f"下: {left_torque/1000:.1f}kg·m")
+        self.right_weight_label.setText(f"上: {right_torque/1000:.1f}kg·m")
+        self.lr_diff_label.setText(f"上下扭矩差距: {lr_torque/1000:.1f}kg·m")
         
         self.front_weight_label.setText(f"前: {front_torque/1000:.1f}kg·m")
         self.rear_weight_label.setText(f"后: {rear_torque/1000:.1f}kg·m")

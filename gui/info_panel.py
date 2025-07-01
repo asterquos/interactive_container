@@ -194,16 +194,16 @@ class InfoPanel(QWidget):
         group = QGroupBox("重量平衡")
         layout = QVBoxLayout(group)
         
-        # 左右重量平衡
+        # 上下重量平衡
         lr_layout = QHBoxLayout()
-        lr_layout.addWidget(QLabel("左右:"))
+        lr_layout.addWidget(QLabel("上下:"))
         self.lr_balance_label = QLabel("- / -")
         self.lr_diff_label = QLabel("扭矩差距: -")
         lr_layout.addWidget(self.lr_balance_label)
         lr_layout.addWidget(self.lr_diff_label)
         layout.addLayout(lr_layout)
         
-        # 左右平衡指示器
+        # 上下平衡指示器
         self.lr_balance_bar = QProgressBar()
         self.lr_balance_bar.setRange(0, 100)
         self.lr_balance_bar.setValue(50)

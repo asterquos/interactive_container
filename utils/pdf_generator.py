@@ -212,9 +212,9 @@ class PDFGenerator:
         # 创建平衡分析表格
         balance_data = [
             ["项目", "数值", "状态"],
-            ["左侧重量", f"{balance_info['left_weight']:.1f} kg", ""],
-            ["右侧重量", f"{balance_info['right_weight']:.1f} kg", ""],
-            ["左右扭矩", f"{balance_info['lr_torque']/1000:.1f} kg·m", 
+            ["下侧重量", f"{balance_info['left_weight']:.1f} kg", ""],
+            ["上侧重量", f"{balance_info['right_weight']:.1f} kg", ""],
+            ["上下扭矩", f"{balance_info['lr_torque']/1000:.1f} kg·m", 
              "正常" if balance_info['lr_torque'] <= balance_info['lr_torque_limit'] else "超限"],
             ["前部重量", f"{balance_info['front_weight']:.1f} kg", ""],
             ["后部重量", f"{balance_info['rear_weight']:.1f} kg", ""],
