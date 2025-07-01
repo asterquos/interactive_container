@@ -111,20 +111,21 @@ def build_executable():
     """构建可执行文件"""
     print("开始构建Windows可执行文件...")
     
-    # 使用spec文件构建
+    # 使用spec文件构建，显示实时输出
     cmd = [sys.executable, '-m', 'PyInstaller', '--clean', 'container_app.spec']
     
     try:
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-        print("构建成功!")
-        print(result.stdout)
+        # 不捕获输出，让它直接显示在控制台
+        result = subprocess.run(cmd, check=True)
+        print("\n构建成功!")
+        return True
     except subprocess.CalledProcessError as e:
-        print("构建失败!")
+        print("\n构建失败!")
         print(f"错误代码: {e.returncode}")
-        print(f"错误输出: {e.stderr}")
         return False
-    
-    return True
+    except KeyboardInterrupt:
+        print("\n构建被用户中断")
+        return False
 
 def create_launcher_bat():
     """创建启动批处理文件"""

@@ -732,6 +732,9 @@ class ContainerView(QWidget):
             widget = widget.parent()
         
         if main_window:
+            # 重置箱子位置，避免影响后续放置
+            box.x = 0
+            box.y = 0
             # 添加到待装载列表
             main_window.pending_boxes.append(box)
             # 更新左侧列表显示

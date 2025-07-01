@@ -73,6 +73,9 @@ class Container:
     
     def find_placement_position(self, box: Box) -> Optional[Tuple[float, float]]:
         """为箱子寻找合适的放置位置"""
+        # 保存原始位置
+        original_x, original_y = box.x, box.y
+        
         # 简单的左下角优先策略
         step = 50  # 搜索步长 (mm)
         
@@ -83,8 +86,12 @@ class Container:
             for x in range(0, max_x + step, step):
                 box.move_to(float(x), float(y))
                 if self.can_place_box(box):
+                    # 恢复原始位置后返回找到的位置
+                    box.move_to(original_x, original_y)
                     return (float(x), float(y))
         
+        # 没找到位置，恢复原始位置
+        box.move_to(original_x, original_y)
         return None
     
     def calculate_weight_balance(self) -> dict:
