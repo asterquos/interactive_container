@@ -4,7 +4,7 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGraphicsView, 
                              QGraphicsScene, QGraphicsRectItem, QGraphicsTextItem,
                              QToolBar, QAction, QPushButton, QSlider, QLabel, QMenu,
-                             QGraphicsDropShadowEffect)
+                             QGraphicsDropShadowEffect, QSizePolicy)
 from PyQt5.QtCore import Qt, pyqtSignal, QRectF, QPointF
 from PyQt5.QtGui import (QPen, QBrush, QColor, QFont, QPainter, QTransform, 
                          QWheelEvent, QMouseEvent)
@@ -237,6 +237,21 @@ class BoxGraphicsItem(QGraphicsRectItem):
                     self.setPen(QPen(QColor(255, 0, 0), 2))
                     return QPointF(old_x * self.scale_factor, old_y * self.scale_factor)
         
+        # 箱子移动后立即触发重叠检查
+        if change == QGraphicsRectItem.ItemPositionHasChanged:
+            # 获取父级容器视图并触发重叠检查
+            view = self.get_view_cached()
+            if view and hasattr(view, 'parent') and view.parent():
+                container_view = view.parent()
+                if hasattr(container_view, 'check_and_show_overlaps'):
+                    # 使用定时器避免频繁检查
+                    from PyQt5.QtCore import QTimer
+                    if not hasattr(container_view, '_overlap_check_timer'):
+                        container_view._overlap_check_timer = QTimer()
+                        container_view._overlap_check_timer.timeout.connect(container_view.check_and_show_overlaps)
+                        container_view._overlap_check_timer.setSingleShot(True)
+                    container_view._overlap_check_timer.start(100)  # 100ms后检查
+        
         return super().itemChange(change, value)
     
     def _find_snap_position(self, old_x, old_y, target_x, target_y, container):
@@ -408,14 +423,8 @@ class BoxGraphicsItem(QGraphicsRectItem):
         swap_candidates = self.find_adjacent_boxes()
         
         # 调试信息：记录相邻检测结果
-        container = self.get_container_cached()
-        if container:
-            total_boxes = len(container.boxes)
-            print(f"箱子 {self.box.id} 右键菜单: 总箱子数={total_boxes}, 找到相邻箱子数={len(swap_candidates)}")
-            if swap_candidates:
-                for candidate in swap_candidates:
-                    direction = self.get_direction_to_box(candidate)
-                    print(f"  - {direction}箱子 {candidate.id}")
+        if swap_candidates:
+            print(f"箱子 {self.box.id} 找到 {len(swap_candidates)} 个相邻箱子可以交换")
         
         if swap_candidates:
             swap_menu = menu.addMenu("与相邻箱子互换")
@@ -514,8 +523,8 @@ class BoxGraphicsItem(QGraphicsRectItem):
         if not container:
             return adjacent_boxes
         
-        gap_threshold = 100  # 间隙阈值(mm) - 放宽到100mm
-        overlap_threshold = 200  # 重叠阈值(mm) - 需要有一定重叠才算相邻
+        gap_threshold = 500  # 间隙阈值(mm) - 大幅放宽到500mm
+        overlap_threshold = 50   # 重叠阈值(mm) - 进一步降低重叠要求
         
         for other_box in container.boxes:
             if other_box is self.box:
@@ -586,54 +595,221 @@ class BoxGraphicsItem(QGraphicsRectItem):
         if not container:
             return False
         
-        # 临时保存当前位置
+        # 保存原始位置
         self_old_x, self_old_y = self.box.x, self.box.y
         other_old_x, other_old_y = other_box.x, other_box.y
         
-        # 尝试交换位置
+        # 首先尝试最简单的直接交换
         self.box.x, self.box.y = other_old_x, other_old_y
         other_box.x, other_box.y = self_old_x, self_old_y
         
-        # 检查交换后是否都在边界内
-        if (self.box.x < 0 or self.box.y < 0 or 
-            self.box.x + self.box.actual_length > container.length or
-            self.box.y + self.box.actual_width > container.width or
-            other_box.x < 0 or other_box.y < 0 or
-            other_box.x + other_box.actual_length > container.length or
-            other_box.y + other_box.actual_width > container.width):
-            # 恢复位置
+        if self._is_swap_position_valid(container, other_box) and self._check_other_box_valid(other_box, container):
+            # 恢复位置并返回成功
             self.box.x, self.box.y = self_old_x, self_old_y
             other_box.x, other_box.y = other_old_x, other_old_y
-            return False
+            return True
         
-        # 检查交换后是否与其他箱子碰撞
-        for box in container.boxes:
-            if box is self.box or box is other_box:
-                continue
+        # 如果直接交换不行，尝试其他策略
+        swap_strategies = self._generate_swap_strategies(other_box, container)
+        
+        for strategy in swap_strategies[1:]:  # 跳过第一个（直接交换已经试过）
+            self_new_x, self_new_y, other_new_x, other_new_y = strategy
             
-            if self.box.overlaps_with(box) or other_box.overlaps_with(box):
-                # 恢复位置
+            # 临时设置新位置
+            self.box.x, self.box.y = self_new_x, self_new_y
+            other_box.x, other_box.y = other_new_x, other_new_y
+            
+            # 检查是否有效
+            if self._is_swap_position_valid(container, other_box) and self._check_other_box_valid(other_box, container):
+                # 恢复位置并返回成功
                 self.box.x, self.box.y = self_old_x, self_old_y
                 other_box.x, other_box.y = other_old_x, other_old_y
-                return False
+                return True
         
-        # 恢复位置（只是检查）
+        # 恢复原始位置
         self.box.x, self.box.y = self_old_x, self_old_y
         other_box.x, other_box.y = other_old_x, other_old_y
+        return False
+    
+    def _generate_swap_strategies(self, other_box, container, self_original_pos, other_original_pos):
+        """生成多种交换策略"""
+        strategies = []
+        self_orig_x, self_orig_y = self_original_pos
+        other_orig_x, other_orig_y = other_original_pos
+        
+        # 策略1：直接交换位置（最高优先级）
+        direct_swap = (other_orig_x, other_orig_y, self_orig_x, self_orig_y)
+        strategies.append(direct_swap)
+        
+        # 策略2：允许少量偏移的交换（在原位置附近微调）
+        for self_offset in [(0, 0), (10, 0), (-10, 0), (0, 10), (0, -10), (10, 10), (-10, -10)]:
+            for other_offset in [(0, 0), (10, 0), (-10, 0), (0, 10), (0, -10), (10, 10), (-10, -10)]:
+                if self_offset == (0, 0) and other_offset == (0, 0):
+                    continue  # 跳过直接交换，已经添加过了
+                
+                self_new_x = other_orig_x + self_offset[0]
+                self_new_y = other_orig_y + self_offset[1]
+                other_new_x = self_orig_x + other_offset[0]
+                other_new_y = self_orig_y + other_offset[1]
+                
+                # 检查是否在边界内
+                if (self_new_x >= 0 and self_new_y >= 0 and
+                    self_new_x + self.box.actual_length <= container.length and
+                    self_new_y + self.box.actual_width <= container.width and
+                    other_new_x >= 0 and other_new_y >= 0 and
+                    other_new_x + other_box.actual_length <= container.length and
+                    other_new_y + other_box.actual_width <= container.width):
+                    
+                    strategies.append((self_new_x, self_new_y, other_new_x, other_new_y))
+        
+        # 策略3：如果直接交换不行，尝试紧贴放置 - 使用原始位置作为参考
+        # 暂时设置box位置到原始位置进行计算
+        current_self_x, current_self_y = self.box.x, self.box.y
+        current_other_x, current_other_y = other_box.x, other_box.y
+        
+        # 设置为原始位置
+        self.box.x, self.box.y = self_orig_x, self_orig_y
+        other_box.x, other_box.y = other_orig_x, other_orig_y
+        
+        self_adjacent_positions = self._find_adjacent_positions(other_box, self.box, container)
+        other_adjacent_positions = self._find_adjacent_positions(self.box, other_box, container)
+        
+        # 恢复当前位置
+        self.box.x, self.box.y = current_self_x, current_self_y
+        other_box.x, other_box.y = current_other_x, current_other_y
+        
+        # 优先选择一个箱子占据对方原位置，另一个箱子紧贴
+        for self_pos in self_adjacent_positions[:3]:  # 只取前3个最近的位置
+            strategies.append((self_pos[0], self_pos[1], self_orig_x, self_orig_y))
+        
+        for other_pos in other_adjacent_positions[:3]:  # 只取前3个最近的位置
+            strategies.append((other_orig_x, other_orig_y, other_pos[0], other_pos[1]))
+        
+        # 策略4：最后才考虑完全不同的位置
+        if len(strategies) < 10:  # 只有在前面的策略不够时才使用
+            self_positions = self._find_positions_near(other_orig_x, other_orig_y, self.box, container)
+            other_positions = self._find_positions_near(self_orig_x, self_orig_y, other_box, container)
+            
+            # 只添加前几个最近的组合
+            for i, self_pos in enumerate(self_positions[:3]):
+                for j, other_pos in enumerate(other_positions[:3]):
+                    if i + j < 4:  # 限制组合数量
+                        strategies.append((self_pos[0], self_pos[1], other_pos[0], other_pos[1]))
+        
+        return strategies
+    
+    def _find_adjacent_positions(self, reference_box, box_to_place, container):
+        """寻找紧贴参考箱子的位置"""
+        positions = []
+        
+        # 四个紧贴位置：左、右、上、下
+        adjacent_offsets = [
+            # 左侧紧贴
+            (reference_box.x - box_to_place.actual_length - 1, reference_box.y),
+            # 右侧紧贴
+            (reference_box.x + reference_box.actual_length + 1, reference_box.y),
+            # 上方紧贴
+            (reference_box.x, reference_box.y - box_to_place.actual_width - 1),
+            # 下方紧贴
+            (reference_box.x, reference_box.y + reference_box.actual_width + 1),
+            
+            # 对角线位置
+            (reference_box.x - box_to_place.actual_length - 1, reference_box.y - box_to_place.actual_width - 1),
+            (reference_box.x + reference_box.actual_length + 1, reference_box.y - box_to_place.actual_width - 1),
+            (reference_box.x - box_to_place.actual_length - 1, reference_box.y + reference_box.actual_width + 1),
+            (reference_box.x + reference_box.actual_length + 1, reference_box.y + reference_box.actual_width + 1),
+        ]
+        
+        for x, y in adjacent_offsets:
+            # 检查边界
+            if (x >= 0 and y >= 0 and 
+                x + box_to_place.actual_length <= container.length and
+                y + box_to_place.actual_width <= container.width):
+                positions.append((x, y))
+        
+        return positions
+    
+    def _find_positions_near(self, target_x, target_y, box_to_place, container):
+        """在目标位置附近寻找可放置的位置"""
+        positions = []
+        
+        # 多层搜索：先近距离精细搜索，再远距离粗糙搜索
+        search_configs = [
+            (100, 25),   # 100mm半径，25mm步长
+            (300, 50),   # 300mm半径，50mm步长
+            (800, 100),  # 800mm半径，100mm步长
+        ]
+        
+        for search_radius, step in search_configs:
+            layer_positions = []
+            
+            # 在目标位置周围搜索
+            for dx in range(-search_radius, search_radius + 1, step):
+                for dy in range(-search_radius, search_radius + 1, step):
+                    new_x = target_x + dx
+                    new_y = target_y + dy
+                    
+                    # 检查是否在容器边界内
+                    if (new_x >= 0 and new_y >= 0 and 
+                        new_x + box_to_place.actual_length <= container.length and
+                        new_y + box_to_place.actual_width <= container.width):
+                        
+                        # 计算距离目标位置的距离
+                        distance = ((new_x - target_x)**2 + (new_y - target_y)**2)**0.5
+                        layer_positions.append((new_x, new_y, distance))
+            
+            # 按距离排序，每层取最近的几个位置
+            layer_positions.sort(key=lambda p: p[2])
+            positions.extend([(p[0], p[1]) for p in layer_positions[:5]])  # 每层取5个最近位置
+        
+        # 去重并按距离排序
+        unique_positions = list(set(positions))
+        unique_with_distance = [(x, y, ((x - target_x)**2 + (y - target_y)**2)**0.5) 
+                               for x, y in unique_positions]
+        unique_with_distance.sort(key=lambda p: p[2])
+        
+        return [(p[0], p[1]) for p in unique_with_distance[:15]]  # 返回最近的15个位置
+    
+    def _is_swap_position_valid(self, container, exclude_box=None):
+        """检查当前交换位置是否有效"""
+        # 检查边界
+        if (self.box.x < 0 or self.box.y < 0 or 
+            self.box.x + self.box.actual_length > container.length or
+            self.box.y + self.box.actual_width > container.width):
+            return False
+        
+        # 检查与其他箱子的碰撞（排除参与交换的两个箱子）
+        for box in container.boxes:
+            if box is self.box or box is exclude_box:
+                continue
+            
+            if self.box.overlaps_with(box):
+                return False
+        
         return True
     
     def swap_with_box(self, other_box):
         """与另一个箱子互换位置"""
-        if not self.can_swap_with(other_box):
+        container = self.get_container_cached()
+        if not container:
+            print(f"交换失败: 无法获取容器")
             return
         
-        # 保存当前位置
+        # 保存原始位置
         self_old_x, self_old_y = self.box.x, self.box.y
         other_old_x, other_old_y = other_box.x, other_box.y
         
-        # 交换位置
+        print(f"尝试交换: {self.box.id}({self_old_x:.1f},{self_old_y:.1f},尺寸:{self.box.actual_length}x{self.box.actual_width}) ↔ {other_box.id}({other_old_x:.1f},{other_old_y:.1f},尺寸:{other_box.actual_length}x{other_box.actual_width})")
+        
+        # 首先尝试最简单的直接交换
         self.box.x, self.box.y = other_old_x, other_old_y
         other_box.x, other_box.y = self_old_x, self_old_y
+        
+        swap_success = False
+        
+        # 完全开放的交换逻辑：允许重叠和超出边界
+        print(f"✓ 位置交换完成（允许重叠和超界）: {self.box.id}({self_old_x:.1f},{self_old_y:.1f})→({self.box.x:.1f},{self.box.y:.1f}), {other_box.id}({other_old_x:.1f},{other_old_y:.1f})→({other_box.x:.1f},{other_box.y:.1f})")
+        swap_success = True
         
         # 更新图形项位置
         self.setPos(self.box.x * self.scale_factor, self.box.y * self.scale_factor)
@@ -660,6 +836,38 @@ class BoxGraphicsItem(QGraphicsRectItem):
         if view and hasattr(view, 'box_moved'):
             view.box_moved.emit(self.box, self.box.x, self.box.y)
             view.box_moved.emit(other_box, other_box.x, other_box.y)
+        
+        # 验证交换结果
+        if (abs(self.box.x - other_old_x) < 1 and abs(self.box.y - other_old_y) < 1 and
+            abs(other_box.x - self_old_x) < 1 and abs(other_box.y - self_old_y) < 1):
+            print(f"完美交换成功: {self.box.id}↔{other_box.id}")
+        else:
+            print(f"位置调整交换: {self.box.id}({self_old_x:.1f},{self_old_y:.1f})→({self.box.x:.1f},{self.box.y:.1f}), {other_box.id}({other_old_x:.1f},{other_old_y:.1f})→({other_box.x:.1f},{other_box.y:.1f})")
+        
+        # 检查并显示重叠警告
+        view = self.get_view_cached()
+        if view and hasattr(view, 'parent') and view.parent():
+            container_view = view.parent()
+            if hasattr(container_view, 'check_and_show_overlaps'):
+                container_view.check_and_show_overlaps()
+    
+    def _check_other_box_valid(self, other_box, container):
+        """检查另一个箱子的位置是否有效"""
+        # 检查边界
+        if (other_box.x < 0 or other_box.y < 0 or 
+            other_box.x + other_box.actual_length > container.length or
+            other_box.y + other_box.actual_width > container.width):
+            return False
+        
+        # 检查与其他箱子的碰撞（排除参与交换的两个箱子）
+        for box in container.boxes:
+            if box is other_box or box is self.box:
+                continue
+            
+            if other_box.overlaps_with(box):
+                return False
+        
+        return True
     
     def set_swap_candidate(self, is_candidate):
         """设置是否为交换候选"""
@@ -1198,6 +1406,31 @@ class ContainerView(QWidget):
         self.balance_status_label.setStyleSheet("font-size: 14px; font-weight: bold; padding: 5px; color: green;")
         balance_layout.addWidget(self.balance_status_label)
         
+        # 分隔符
+        separator3 = QLabel(" | ")
+        separator3.setStyleSheet("color: #999;")
+        balance_layout.addWidget(separator3)
+        
+        # 重叠警告标签（使用透明背景隐藏，保持布局稳定）
+        self.overlap_warning_label = QLabel("⚠️ 检测到箱子重叠！")
+        self.overlap_warning_label.setStyleSheet("""
+            font-size: 16px; 
+            font-weight: bold; 
+            padding: 8px 12px; 
+            color: transparent; 
+            background-color: transparent; 
+            border: 2px solid transparent; 
+            border-radius: 5px;
+        """)
+        # 固定宽度和高度保持布局稳定
+        self.overlap_warning_label.setFixedSize(280, 40)  # 固定宽度280px，高度40px
+        self.overlap_warning_label.setMinimumSize(280, 40)  # 最小尺寸
+        self.overlap_warning_label.setMaximumSize(280, 40)  # 最大尺寸
+        self.overlap_warning_label.setWordWrap(False)  # 禁止自动换行
+        self.overlap_warning_label.setAlignment(Qt.AlignCenter)  # 居中对齐
+        self.overlap_warning_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)  # 固定尺寸策略
+        balance_layout.addWidget(self.overlap_warning_label)
+        
         balance_layout.addStretch()
         
         # 设置背景色
@@ -1270,15 +1503,21 @@ class ContainerView(QWidget):
                 QTimer.singleShot(150, self.graphics_view.fit_in_view)
         except Exception as e:
             print(f"ContainerView update timer error: {e}")
+        # 检查并显示重叠警告
+        self.check_and_show_overlaps()
     
     def add_box(self, box: Box):
         """添加箱子"""
         self.graphics_view.add_box(box)
         self.box_placed.emit(box)
+        # 检查并显示重叠警告
+        self.check_and_show_overlaps()
     
     def remove_box(self, box: Box):
         """移除箱子"""
         self.graphics_view.remove_box(box)
+        # 检查并显示重叠警告
+        self.check_and_show_overlaps()
     
     def highlight_box(self, box: Box):
         """高亮箱子"""
@@ -1374,3 +1613,233 @@ class ContainerView(QWidget):
             self.fr_diff_label.setStyleSheet("font-size: 14px; font-weight: bold; padding: 5px; color: red;")
         else:
             self.fr_diff_label.setStyleSheet("font-size: 14px; font-weight: bold; padding: 5px; color: green;")
+    
+    def show_overlap_warning(self, overlapping_pairs=None):
+        """显示重叠警告"""
+        if overlapping_pairs:
+            # 分离箱子重叠和边界超出
+            box_overlaps = []
+            boundary_issues = []
+            
+            for item in overlapping_pairs:
+                box1, box2 = item
+                if box2 == "边界":
+                    boundary_issues.append(box1)
+                else:
+                    box_overlaps.append((box1, box2))
+            
+            # 构建详细的重叠信息，限制文本长度
+            warning_parts = []
+            
+            if box_overlaps:
+                if len(box_overlaps) == 1:
+                    box1, box2 = box_overlaps[0]
+                    id1 = box1.id[:6] if len(box1.id) > 6 else box1.id
+                    id2 = box2.id[:6] if len(box2.id) > 6 else box2.id
+                    warning_parts.append(f"{id1}↔{id2}")
+                else:
+                    warning_parts.append(f"{len(box_overlaps)}组重叠")
+            
+            if boundary_issues:
+                if len(boundary_issues) == 1:
+                    box_id = boundary_issues[0].id[:8] if len(boundary_issues[0].id) > 8 else boundary_issues[0].id
+                    warning_parts.append(f"{box_id}超界")
+                else:
+                    warning_parts.append(f"{len(boundary_issues)}个超界")
+            
+            if warning_parts:
+                warning_text = f"⚠️ {', '.join(warning_parts)}"
+            else:
+                warning_text = "⚠️ 检测到问题！"
+            
+            # 确保文本不超过固定宽度（约30个字符）
+            if len(warning_text) > 30:
+                warning_text = warning_text[:27] + "..."
+            
+            # 记录当前重叠状态用于实时监控
+            self._current_overlaps = set()
+            for item in overlapping_pairs:
+                box1, box2 = item
+                if box2 == "边界":
+                    self._current_overlaps.add((box1.id, "边界"))
+                else:
+                    self._current_overlaps.add((min(box1.id, box2.id), max(box1.id, box2.id)))
+            
+            # 打印详细信息
+            overlap_info = []
+            for box1, box2 in box_overlaps:
+                overlap_info.append(f'{box1.id}↔{box2.id}')
+            for box in boundary_issues:
+                overlap_info.append(f'{box.id}超界')
+            print(f"问题检测: {overlap_info}")
+        else:
+            warning_text = "⚠️ 检测到箱子重叠！"
+            self._current_overlaps = set()
+        
+        self.overlap_warning_label.setText(warning_text)
+        
+        # 改变样式使警告可见
+        self.overlap_warning_label.setStyleSheet("""
+            font-size: 16px; 
+            font-weight: bold; 
+            padding: 8px 12px; 
+            color: #FFFFFF; 
+            background-color: #FF4444; 
+            border: 2px solid #FF0000; 
+            border-radius: 5px;
+        """)
+        
+        # 停止之前的定时器
+        if hasattr(self, '_overlap_timer'):
+            self._overlap_timer.stop()
+        
+        # 开始实时监控
+        self._start_overlap_monitoring()
+    
+    def hide_overlap_warning(self):
+        """隐藏重叠警告"""
+        # 改变样式使警告透明
+        self.overlap_warning_label.setText("⚠️ 检测到箱子重叠！")  # 重置文本
+        self.overlap_warning_label.setStyleSheet("""
+            font-size: 16px; 
+            font-weight: bold; 
+            padding: 8px 12px; 
+            color: transparent; 
+            background-color: transparent; 
+            border: 2px solid transparent; 
+            border-radius: 5px;
+        """)
+        
+        # 停止监控
+        self._stop_overlap_monitoring()
+        
+        # 清除重叠状态
+        if hasattr(self, '_current_overlaps'):
+            self._current_overlaps = set()
+    
+    def _start_overlap_monitoring(self):
+        """开始实时重叠监控"""
+        from PyQt5.QtCore import QTimer
+        
+        if not hasattr(self, '_overlap_monitor_timer'):
+            self._overlap_monitor_timer = QTimer()
+            self._overlap_monitor_timer.timeout.connect(self._monitor_overlaps)
+        
+        # 每500ms检查一次
+        self._overlap_monitor_timer.start(500)
+    
+    def _stop_overlap_monitoring(self):
+        """停止实时重叠监控"""
+        if hasattr(self, '_overlap_monitor_timer'):
+            self._overlap_monitor_timer.stop()
+    
+    def _monitor_overlaps(self):
+        """监控重叠状态变化"""
+        if not hasattr(self, '_current_overlaps'):
+            return
+            
+        # 获取当前重叠状态
+        current_overlapping_pairs = self._find_overlapping_pairs()
+        current_overlap_set = set()
+        for item in current_overlapping_pairs:
+            box1, box2 = item
+            if box2 == "边界":
+                current_overlap_set.add((box1.id, "边界"))
+            else:
+                current_overlap_set.add((min(box1.id, box2.id), max(box1.id, box2.id)))
+        
+        # 如果重叠状态发生变化
+        if current_overlap_set != self._current_overlaps:
+            if current_overlap_set:
+                # 仍有问题，更新警告
+                self.show_overlap_warning(current_overlapping_pairs)
+            else:
+                # 问题已解除
+                print("✓ 所有问题已解除")
+                self.hide_overlap_warning()
+    
+    def check_and_show_overlaps(self):
+        """检查并显示重叠警告"""
+        if not self.graphics_view.container:
+            self.hide_overlap_warning()
+            return
+            
+        # 检查重叠箱子对
+        overlapping_pairs = self._find_overlapping_pairs()
+        if overlapping_pairs:
+            self.show_overlap_warning(overlapping_pairs)
+        else:
+            self.hide_overlap_warning()
+    
+    def _find_overlapping_pairs(self):
+        """查找所有重叠的箱子对"""
+        if not self.graphics_view.container:
+            return []
+            
+        overlapping_pairs = []
+        out_of_bounds_boxes = []
+        boxes = self.graphics_view.container.boxes
+        container = self.graphics_view.container
+        
+        # 检查箱子间重叠
+        for i, box1 in enumerate(boxes):
+            for j, box2 in enumerate(boxes[i+1:], i+1):
+                if self._boxes_overlap(box1, box2):
+                    overlapping_pairs.append((box1, box2))
+        
+        # 检查超出边界的箱子
+        for box in boxes:
+            if self._box_out_of_bounds(box, container):
+                out_of_bounds_boxes.append(box)
+        
+        # 如果有超出边界的箱子，添加特殊的"边界重叠"
+        if out_of_bounds_boxes:
+            # 创建虚拟的边界对象用于显示
+            for box in out_of_bounds_boxes:
+                overlapping_pairs.append((box, "边界"))
+        
+        return overlapping_pairs
+    
+    def _box_out_of_bounds(self, box, container):
+        """检查箱子是否超出容器边界"""
+        return (box.x < 0 or box.y < 0 or 
+                box.x + box.actual_length > container.length or
+                box.y + box.actual_width > container.width)
+    
+    def _boxes_overlap(self, box1, box2):
+        """检查两个箱子是否重叠（优化版本）"""
+        # 快速边界检查 - 如果箱子距离太远，直接返回False
+        tolerance = 1.0  # 1mm容差
+        
+        # 计算中心点距离进行快速排除
+        box1_center_x = box1.x + box1.actual_length / 2
+        box1_center_y = box1.y + box1.actual_width / 2
+        box2_center_x = box2.x + box2.actual_length / 2
+        box2_center_y = box2.y + box2.actual_width / 2
+        
+        # 如果中心点距离大于两个箱子尺寸之和，肯定不重叠
+        max_distance_x = (box1.actual_length + box2.actual_length) / 2
+        max_distance_y = (box1.actual_width + box2.actual_width) / 2
+        
+        if (abs(box1_center_x - box2_center_x) > max_distance_x or 
+            abs(box1_center_y - box2_center_y) > max_distance_y):
+            return False
+        
+        # 精确边界检查
+        box1_left = box1.x
+        box1_right = box1.x + box1.actual_length
+        box1_top = box1.y
+        box1_bottom = box1.y + box1.actual_width
+        
+        box2_left = box2.x
+        box2_right = box2.x + box2.actual_length
+        box2_top = box2.y
+        box2_bottom = box2.y + box2.actual_width
+        
+        # 检查是否重叠
+        overlap = not (box1_right <= box2_left + tolerance or 
+                      box2_right <= box1_left + tolerance or 
+                      box1_bottom <= box2_top + tolerance or 
+                      box2_bottom <= box1_top + tolerance)
+        
+        return overlap

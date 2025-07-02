@@ -779,7 +779,6 @@ class MainWindow(QMainWindow):
             self.container_view.add_box(box_to_place)
             self.update_status()
             self.log_message(f"成功拖拽放置箱子: {box_id}")
-            self.show_message_box(QMessageBox.Information, "放置成功", f"箱子 {box_id} 已成功放置到集装箱")
         else:
             self.log_message(f"无法添加箱子 {box_id} 到集装箱")
             self.show_message_box(QMessageBox.Warning, "放置失败", "无法将箱子添加到集装箱")

@@ -139,12 +139,12 @@ class Container:
         # 为每个箱子计算质心位置和扭矩
         for box in self.boxes:
             # 箱子质心位置
-            box_center_x = box.x + box.actual_length / 2  # 前后方向质心
-            box_center_y = box.y + box.actual_width / 2   # 左右方向质心
+            box_center_x = box.x + box.actual_length / 2  # X轴质心（length方向）
+            box_center_y = box.y + box.actual_width / 2   # Y轴质心（width方向）
             
             # 计算到中心线的距离
-            distance_to_lr_line = abs(box_center_y - center_y_line)  # 到左右中心线距离
-            distance_to_fr_line = abs(box_center_x - center_x_line)  # 到前后中心线距离
+            distance_to_lr_line = abs(box_center_y - center_y_line)  # 到左右中心线距离（Y轴）
+            distance_to_fr_line = abs(box_center_x - center_x_line)  # 到前后中心线距离（X轴）
             
             # 计算前后分配和扭矩（沿X轴方向）
             if box_center_x < center_x_line:
