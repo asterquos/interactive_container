@@ -88,12 +88,28 @@ def main():
         
         # 如果是打包版本，显示错误对话框
         if getattr(sys, 'frozen', False):
-            from PyQt5.QtWidgets import QMessageBox
+            from PyQt5.QtWidgets import QMessageBox, QDesktopWidget
+            
+            # 创建应用（如果还没有）
+            if not QApplication.instance():
+                error_app = QApplication(sys.argv)
+            
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Critical)
             msg.setWindowTitle("启动错误")
             msg.setText(f"程序启动失败：\n{str(e)}")
             msg.setDetailedText(traceback.format_exc())
+            
+            # 居中显示错误对话框
+            msg.adjustSize()
+            desktop = QDesktopWidget()
+            screen_geometry = desktop.screenGeometry()
+            msg_width = msg.width()
+            msg_height = msg.height()
+            center_x = (screen_geometry.width() - msg_width) // 2
+            center_y = (screen_geometry.height() - msg_height) // 2
+            msg.move(center_x, center_y)
+            
             msg.exec_()
 
 if __name__ == "__main__":

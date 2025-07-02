@@ -263,7 +263,7 @@ class MainWindow(QMainWindow):
                 
                 if errors:
                     error_msg = "\n".join(errors)
-                    QMessageBox.warning(self, "导入警告", f"导入过程中发现问题:\n{error_msg}")
+                    self.show_message_box(QMessageBox.Warning, "导入警告", f"导入过程中发现问题:\n{error_msg}")
                 
                 if boxes:
                     self.pending_boxes = boxes
@@ -271,10 +271,10 @@ class MainWindow(QMainWindow):
                     self.log_message(f"成功导入 {len(boxes)} 个箱子")
                     self.update_status()
                 else:
-                    QMessageBox.warning(self, "导入失败", "没有找到有效的箱子数据")
+                    self.show_message_box(QMessageBox.Warning, "导入失败", "没有找到有效的箱子数据")
                     
             except Exception as e:
-                QMessageBox.critical(self, "导入错误", f"导入Excel文件时出错:\n{str(e)}")
+                self.show_message_box(QMessageBox.Critical, "导入错误", f"导入Excel文件时出错:\n{str(e)}")
                 self.log_message(f"导入错误: {str(e)}")
     
     def save_project(self):
@@ -308,13 +308,13 @@ class MainWindow(QMainWindow):
             if success:
                 self.current_project_path = file_path
                 self.setWindowTitle(f"Container Loading System - {project_name}")
-                QMessageBox.information(self, "保存成功", f"项目已保存到:\n{file_path}")
+                self.show_message_box(QMessageBox.Information, "保存成功", f"项目已保存到:\n{file_path}")
                 self.log_message(f"项目保存成功: {file_path}")
             else:
-                QMessageBox.critical(self, "保存失败", "保存项目时出现错误")
+                self.show_message_box(QMessageBox.Critical, "保存失败", "保存项目时出现错误")
                 
         except Exception as e:
-            QMessageBox.critical(self, "保存错误", f"保存项目时出错:\n{str(e)}")
+            self.show_message_box(QMessageBox.Critical, "保存错误", f"保存项目时出错:\n{str(e)}")
             self.log_message(f"项目保存错误: {str(e)}")
     
     def load_project(self):
@@ -363,16 +363,16 @@ class MainWindow(QMainWindow):
                 self.log_message(f"项目加载成功: {file_path}")
                 
             else:
-                QMessageBox.critical(self, "加载失败", "项目文件格式错误或文件损坏")
+                self.show_message_box(QMessageBox.Critical, "加载失败", "项目文件格式错误或文件损坏")
                 
         except Exception as e:
-            QMessageBox.critical(self, "加载错误", f"加载项目时出错:\n{str(e)}")
+            self.show_message_box(QMessageBox.Critical, "加载错误", f"加载项目时出错:\n{str(e)}")
             self.log_message(f"项目加载错误: {str(e)}")
     
     def export_pdf(self):
         """导出PDF报告"""
         if not self.containers or not any(container.boxes for container in self.containers):
-            QMessageBox.warning(self, "导出失败", "没有装载数据可以导出")
+            self.show_message_box(QMessageBox.Warning, "导出失败", "没有装载数据可以导出")
             return
         
         # 选择保存位置
@@ -390,22 +390,35 @@ class MainWindow(QMainWindow):
                 success = generator.generate_report(self.containers, file_path, True)
                 
                 if success:
-                    QMessageBox.information(self, "导出成功", f"PDF报告已保存到:\n{file_path}")
+                    self.show_message_box(QMessageBox.Information, "导出成功", f"PDF报告已保存到:\n{file_path}")
                     self.log_message(f"PDF报告导出成功: {file_path}")
                 else:
-                    QMessageBox.critical(self, "导出失败", "生成PDF报告时出现错误")
+                    self.show_message_box(QMessageBox.Critical, "导出失败", "生成PDF报告时出现错误")
                     
             except Exception as e:
-                QMessageBox.critical(self, "导出错误", f"导出PDF时出错:\n{str(e)}")
+                self.show_message_box(QMessageBox.Critical, "导出错误", f"导出PDF时出错:\n{str(e)}")
                 self.log_message(f"PDF导出错误: {str(e)}")
     
     def clear_current_container(self):
         """清空当前集装箱"""
         if self.current_container:
+            # 将集装箱中的所有箱子放回待装载列表
+            boxes_to_return = list(self.current_container.boxes)  # 复制列表避免修改时出错
+            for box in boxes_to_return:
+                # 重置箱子位置
+                box.x = 0
+                box.y = 0
+                # 添加到待装载列表
+                self.pending_boxes.append(box)
+            
+            # 清空集装箱
             self.current_container.clear()
+            
+            # 更新界面
             self.container_view.update_view()
+            self.box_list_panel.set_boxes(self.pending_boxes)
             self.update_status()
-            self.log_message("已清空当前集装箱")
+            self.log_message(f"已清空当前集装箱，{len(boxes_to_return)}个箱子已放回待装载列表")
     
     def add_new_container(self):
         """添加新集装箱"""
@@ -425,7 +438,7 @@ class MainWindow(QMainWindow):
     def save_container_config(self):
         """保存当前集装箱配置"""
         if not self.current_container:
-            QMessageBox.warning(self, "保存失败", "当前没有集装箱可以保存")
+            self.show_message_box(QMessageBox.Warning, "保存失败", "当前没有集装箱可以保存")
             return
         
         file_path, _ = QFileDialog.getSaveFileName(
@@ -463,11 +476,11 @@ class MainWindow(QMainWindow):
                 with open(file_path, 'w', encoding='utf-8') as f:
                     json.dump(container_data, f, ensure_ascii=False, indent=2)
                 
-                QMessageBox.information(self, "保存成功", f"集装箱配置已保存到:\n{file_path}")
+                self.show_message_box(QMessageBox.Information, "保存成功", f"集装箱配置已保存到:\n{file_path}")
                 self.log_message(f"集装箱配置保存成功: {file_path}")
                 
             except Exception as e:
-                QMessageBox.critical(self, "保存错误", f"保存集装箱配置时出错:\n{str(e)}")
+                self.show_message_box(QMessageBox.Critical, "保存错误", f"保存集装箱配置时出错:\n{str(e)}")
                 self.log_message(f"集装箱配置保存错误: {str(e)}")
     
     def import_container_config(self):
@@ -520,7 +533,7 @@ class MainWindow(QMainWindow):
                 self.container_view.set_container(container)
                 self.update_status()
                 
-                QMessageBox.information(self, "导入成功", 
+                self.show_message_box(QMessageBox.Information, "导入成功", 
                     f"成功导入集装箱配置:\n"
                     f"集装箱: {container.name}\n"
                     f"箱子数量: {len(imported_boxes)}")
@@ -528,7 +541,7 @@ class MainWindow(QMainWindow):
                 self.log_message(f"集装箱配置导入成功: {file_path}")
                 
             except Exception as e:
-                QMessageBox.critical(self, "导入错误", f"导入集装箱配置时出错:\n{str(e)}")
+                self.show_message_box(QMessageBox.Critical, "导入错误", f"导入集装箱配置时出错:\n{str(e)}")
                 self.log_message(f"集装箱配置导入错误: {str(e)}")
     
     def create_container_tab_widget(self, container):
@@ -618,9 +631,21 @@ class MainWindow(QMainWindow):
             # 确认关闭
             container = self.containers[index]
             if container.boxes:
-                reply = QMessageBox.question(self, "确认关闭", 
+                # 创建确认对话框（特殊处理question类型）
+                msg_box = QMessageBox(QMessageBox.Question, "确认关闭", 
                     f"集装箱 '{container.name}' 中还有 {len(container.boxes)} 个箱子。\n确定要关闭吗？",
-                    QMessageBox.Yes | QMessageBox.No)
+                    QMessageBox.Yes | QMessageBox.No, self)
+                
+                # 居中显示
+                msg_box.adjustSize()
+                main_geometry = self.geometry()
+                msg_box_width = msg_box.width()
+                msg_box_height = msg_box.height()
+                center_x = main_geometry.x() + (main_geometry.width() - msg_box_width) // 2
+                center_y = main_geometry.y() + (main_geometry.height() - msg_box_height) // 2
+                msg_box.move(center_x, center_y)
+                
+                reply = msg_box.exec_()
                 if reply != QMessageBox.Yes:
                     return
             
@@ -708,6 +733,57 @@ class MainWindow(QMainWindow):
         self.update_status()
         self.log_message(f"箱子 {box.id} 已放置")
     
+    def on_box_dropped(self, box_id, x, y):
+        """处理箱子拖拽放置事件"""
+        # 查找要放置的箱子
+        box_to_place = None
+        for box in self.pending_boxes:
+            if box.id == box_id:
+                box_to_place = box
+                break
+        
+        if not box_to_place:
+            self.log_message(f"错误: 找不到箱子 {box_id}")
+            return
+        
+        if not self.current_container:
+            self.log_message(f"错误: 当前没有集装箱")
+            return
+        
+        # 设置箱子位置
+        box_to_place.move_to(x, y)
+        self.log_message(f"拖拽箱子 {box_id} 到位置: ({x:.1f}, {y:.1f})")
+        
+        # 检查位置是否有效（边界内且不重叠）
+        if (x < 0 or y < 0 or 
+            x + box_to_place.actual_length > self.current_container.length or
+            y + box_to_place.actual_width > self.current_container.width):
+            self.log_message(f"箱子 {box_id} 超出集装箱边界")
+            self.show_message_box(QMessageBox.Warning, "放置失败", "箱子位置超出集装箱边界")
+            return
+        
+        # 检查是否与其他箱子重叠
+        for other_box in self.current_container.boxes:
+            if box_to_place.overlaps_with(other_box):
+                self.log_message(f"箱子 {box_id} 与箱子 {other_box.id} 重叠")
+                self.show_message_box(QMessageBox.Warning, "放置失败", f"箱子与已有箱子 {other_box.id} 重叠")
+                return
+        
+        # 添加到集装箱
+        if self.current_container.add_box(box_to_place):
+            # 从待装载列表移除
+            self.pending_boxes.remove(box_to_place)
+            
+            # 更新界面
+            self.box_list_panel.remove_box(box_to_place)
+            self.container_view.add_box(box_to_place)
+            self.update_status()
+            self.log_message(f"成功拖拽放置箱子: {box_id}")
+            self.show_message_box(QMessageBox.Information, "放置成功", f"箱子 {box_id} 已成功放置到集装箱")
+        else:
+            self.log_message(f"无法添加箱子 {box_id} 到集装箱")
+            self.show_message_box(QMessageBox.Warning, "放置失败", "无法将箱子添加到集装箱")
+    
     def on_selection_changed(self, selected_box):
         """选择发生变化"""
         self.selected_box = selected_box  # 记录当前选中的箱子
@@ -726,12 +802,12 @@ class MainWindow(QMainWindow):
             self.update_status()
             self.show_message_box(QMessageBox.Information, "加载示例数据", f"成功加载 {len(sample_boxes)} 个示例箱子")
         except Exception as e:
-            QMessageBox.critical(self, "加载失败", f"加载示例数据时出错:\n{str(e)}")
+            self.show_message_box(QMessageBox.Critical, "加载失败", f"加载示例数据时出错:\n{str(e)}")
             self.log_message(f"加载示例数据错误: {str(e)}")
     
     def show_about(self):
         """显示关于对话框"""
-        QMessageBox.about(self, "关于", 
+        self.show_message_box(QMessageBox.Information, "关于", 
             "集装箱装载管理系统 v1.0\n\n"
             "用于优化集装箱装载过程的专业工具\n"
             "支持Excel导入、可视化布局、重量平衡分析等功能")

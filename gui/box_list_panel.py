@@ -4,8 +4,8 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QListWidget, 
                              QListWidgetItem, QLabel, QPushButton, QLineEdit,
                              QComboBox, QGroupBox)
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QColor, QBrush
+from PyQt5.QtCore import Qt, pyqtSignal, QMimeData
+from PyQt5.QtGui import QColor, QBrush, QDrag
 from typing import List
 from core.box import Box
 
@@ -15,6 +15,7 @@ class BoxListItem(QListWidgetItem):
     def __init__(self, box: Box):
         super().__init__()
         self.box = box
+        self.setFlags(self.flags() | Qt.ItemIsDragEnabled)  # 启用拖拽
         self.update_display()
     
     def update_display(self):
@@ -46,6 +47,22 @@ class BoxListItem(QListWidgetItem):
             color = QColor(r, g, b)
         
         self.setBackground(QBrush(color))
+
+class DraggableListWidget(QListWidget):
+    """支持拖拽的列表控件"""
+    
+    def startDrag(self, supportedActions):
+        """开始拖拽操作"""
+        item = self.currentItem()
+        if isinstance(item, BoxListItem):
+            drag = QDrag(self)
+            mimeData = QMimeData()
+            mimeData.setText(f"box_id:{item.box.id}")
+            drag.setMimeData(mimeData)
+            
+            # 执行拖拽
+            result = drag.exec_(Qt.MoveAction)
+            print(f"拖拽箱子 {item.box.id}, 结果: {result}")
 
 class BoxListPanel(QWidget):
     """箱子列表面板"""
@@ -92,8 +109,10 @@ class BoxListPanel(QWidget):
         
         layout.addWidget(filter_group)
         
-        # 箱子列表
-        self.box_list = QListWidget()
+        # 箱子列表（启用拖拽）
+        self.box_list = DraggableListWidget()
+        self.box_list.setDragDropMode(QListWidget.DragOnly)  # 只能拖出
+        self.box_list.setDefaultDropAction(Qt.MoveAction)
         self.box_list.itemClicked.connect(self.on_item_clicked)
         self.box_list.itemDoubleClicked.connect(self.on_item_double_clicked)
         layout.addWidget(self.box_list)
