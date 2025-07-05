@@ -152,8 +152,8 @@ def create_readme():
 def main():
     """主函数"""
     print("=" * 50)
-    print("集装箱装载管理系统 v1.2 - Windows打包工具")
-    print("修正前后左右方向定位")
+    print("集装箱装载管理系统 v1.3 - Windows打包工具")
+    print("集装箱长度更新为12m，优化扭矩计算")
     print("=" * 50)
     
     # 检查是否在虚拟环境中

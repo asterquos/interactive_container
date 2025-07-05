@@ -65,7 +65,7 @@ class MainWindow(QMainWindow):
     
     def init_ui(self):
         """初始化用户界面"""
-        self.setWindowTitle("Container Loading Management System v1.1")
+        self.setWindowTitle("Container Loading Management System v1.3")
         
         # 获取当前屏幕几何信息并居中显示
         from PyQt5.QtWidgets import QApplication, QDesktopWidget
@@ -807,7 +807,7 @@ class MainWindow(QMainWindow):
     def show_about(self):
         """显示关于对话框"""
         self.show_message_box(QMessageBox.Information, "关于", 
-            "集装箱装载管理系统 v1.0\n\n"
+            "集装箱装载管理系统 v1.3\n\n"
             "用于优化集装箱装载过程的专业工具\n"
             "支持Excel导入、可视化布局、重量平衡分析等功能\n\n"
             "===== 重量平衡计算说明 =====\n"
