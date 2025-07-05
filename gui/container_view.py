@@ -1575,19 +1575,21 @@ class ContainerView(QWidget):
         lr_torque_limit = balance_info['lr_torque_limit']
         fr_torque_limit = balance_info['fr_torque_limit']
         
-        # 更新各区域扭矩
-        left_torque = balance_info['left_torque']
-        right_torque = balance_info['right_torque']
-        front_torque = balance_info['front_torque']
-        rear_torque = balance_info['rear_torque']
+        # 获取等效重量数据
+        left_equivalent = balance_info.get('left_equivalent', 0)
+        right_equivalent = balance_info.get('right_equivalent', 0)
+        front_equivalent = balance_info.get('front_equivalent', 0)
+        rear_equivalent = balance_info.get('rear_equivalent', 0)
+        lr_equivalent_diff = balance_info.get('lr_equivalent_diff', 0)
+        fr_equivalent_diff = balance_info.get('fr_equivalent_diff', 0)
         
-        self.left_weight_label.setText(f"左: {left_torque/1000:.1f}kg·m")
-        self.right_weight_label.setText(f"右: {right_torque/1000:.1f}kg·m")
-        self.lr_diff_label.setText(f"左右扭矩差距: {lr_torque/1000:.1f}kg·m")
+        self.left_weight_label.setText(f"左: {left_equivalent:.1f}kg")
+        self.right_weight_label.setText(f"右: {right_equivalent:.1f}kg")
+        self.lr_diff_label.setText(f"左右差: {lr_equivalent_diff:.1f}kg")
         
-        self.front_weight_label.setText(f"前: {front_torque/1000:.1f}kg·m")
-        self.rear_weight_label.setText(f"后: {rear_torque/1000:.1f}kg·m")
-        self.fr_diff_label.setText(f"前后扭矩差距: {fr_torque/1000:.1f}kg·m")
+        self.front_weight_label.setText(f"前: {front_equivalent:.1f}kg")
+        self.rear_weight_label.setText(f"后: {rear_equivalent:.1f}kg")
+        self.fr_diff_label.setText(f"前后差: {fr_equivalent_diff:.1f}kg")
         
         # 判断平衡状态（基于扭矩）
         lr_ok = lr_torque <= lr_torque_limit

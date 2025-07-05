@@ -9,7 +9,7 @@ class Container:
     """集装箱类"""
     
     # 标准集装箱尺寸 (mm)
-    DEFAULT_LENGTH = 11900
+    DEFAULT_LENGTH = 12000
     DEFAULT_WIDTH = 2300
     
     def __init__(self, name: str = "Container", length: float = None, width: float = None):
@@ -113,6 +113,12 @@ class Container:
                 'rear_torque': 0,
                 'lr_torque': 0,
                 'fr_torque': 0,
+                'left_equivalent': 0,
+                'right_equivalent': 0,
+                'front_equivalent': 0,
+                'rear_equivalent': 0,
+                'lr_equivalent_diff': 0,
+                'fr_equivalent_diff': 0,
                 'lr_torque_limit': lr_torque_limit,
                 'fr_torque_limit': fr_torque_limit,
                 'center_x': self.length / 2,
@@ -170,6 +176,15 @@ class Container:
         lr_torque = abs(left_torque - right_torque)
         fr_torque = abs(front_torque - rear_torque)
         
+        # 计算等效重量（扭矩除以半长/半宽）
+        # 相当于计算悬挂在端点的等效重量
+        left_equivalent = left_torque / (self.width / 2)  # 左侧等效重量
+        right_equivalent = right_torque / (self.width / 2)  # 右侧等效重量
+        front_equivalent = front_torque / (self.length / 2)  # 前方等效重量
+        rear_equivalent = rear_torque / (self.length / 2)  # 后方等效重量
+        lr_equivalent_diff = abs(left_equivalent - right_equivalent)  # 左右等效重量差
+        fr_equivalent_diff = abs(front_equivalent - rear_equivalent)  # 前后等效重量差
+        
         # 计算整体重心（用于显示）
         total_weight = self.total_weight
         if total_weight > 0:
@@ -198,6 +213,12 @@ class Container:
             'rear_torque': rear_torque,
             'lr_torque': lr_torque,
             'fr_torque': fr_torque,
+            'left_equivalent': left_equivalent,
+            'right_equivalent': right_equivalent,
+            'front_equivalent': front_equivalent,
+            'rear_equivalent': rear_equivalent,
+            'lr_equivalent_diff': lr_equivalent_diff,
+            'fr_equivalent_diff': fr_equivalent_diff,
             'lr_torque_limit': lr_torque_limit,
             'fr_torque_limit': fr_torque_limit,
             'center_x': center_x,
