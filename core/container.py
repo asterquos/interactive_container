@@ -176,12 +176,13 @@ class Container:
         lr_torque = abs(left_torque - right_torque)
         fr_torque = abs(front_torque - rear_torque)
         
-        # 计算等效重量（扭矩除以半长/半宽）
+        # 计算等效重量（扭矩除以四分之一长/四分之一宽）
         # 相当于计算悬挂在端点的等效重量
-        left_equivalent = left_torque / (self.width / 2)  # 左侧等效重量
-        right_equivalent = right_torque / (self.width / 2)  # 右侧等效重量
-        front_equivalent = front_torque / (self.length / 2)  # 前方等效重量
-        rear_equivalent = rear_torque / (self.length / 2)  # 后方等效重量
+        # 注意：长度使用11.8m(11800mm)进行计算，而非实际的12m
+        left_equivalent = left_torque / (self.width / 4)  # 左侧等效重量
+        right_equivalent = right_torque / (self.width / 4)  # 右侧等效重量
+        front_equivalent = front_torque / (11800 / 4)  # 前方等效重量（使用11.8m）
+        rear_equivalent = rear_torque / (11800 / 4)  # 后方等效重量（使用11.8m）
         lr_equivalent_diff = abs(left_equivalent - right_equivalent)  # 左右等效重量差
         fr_equivalent_diff = abs(front_equivalent - rear_equivalent)  # 前后等效重量差
         
